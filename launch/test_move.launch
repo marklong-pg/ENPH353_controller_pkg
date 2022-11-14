@@ -1,0 +1,7 @@
+<launch>
+<node pkg="controller_pkg"
+         type="spin_robot.py"
+         name="spin_robot"
+         output="screen">
+</node>
+</launch>
