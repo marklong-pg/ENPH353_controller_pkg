@@ -13,7 +13,7 @@ import rospy
 import roslaunch
 import time
 import numpy as np
-import imutils
+# import imutils
 
 from cv_bridge import CvBridge, CvBridgeError
 from gym import utils, spaces
@@ -117,6 +117,47 @@ def recieve_message():
     rospy.spin()
     cv2.destroyAllWindows()
 
+def findBlueCar(frame):
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    mask = cv2.inRange(hsv, lower_blue, upper_blue)
+    result = cv2.bitwise_and(frame, frame, mask = mask)
+    #cv2.imshow("masked",result)
+
+    #Find contours to verify how close we are to the vehicle
+    img = cv2.cvtColor(result, cv2.COLOR_RGB2GRAY)
+    contours, _ = cv2.findContours(img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    contours=[contour for contour in contours if cv2.contourArea(contour)]
+    carFound=False
+
+    #If we are detecting 2 wedges
+    if len(contours)>2:
+        sortedContours=sorted(contours, key=cv2.contourArea, reverse=True) 
+        centerList=[]
+        
+        #If both wedges are big enough for us to be close to the vehicle
+        if(cv2.contourArea(sortedContours[0])>10000 and cv2.contourArea(sortedContours[1])>3000):
+            print("STOP: CAR DETECTED")
+            #need to change this so that I can detect the cars based on the 2 largest contours that are less that some distance apart (<400 from inital testing)
+            #solution appears to be look at the largest 3 contours, sort based on minimization of center in x
+            for i in range(2):
+                M = cv2.moments(sortedContours[i])
+                center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
+                centerList.append(center)
+            if abs(centerList[1][0]-centerList[0][0])>contourXDistThresh and abs(centerList[1][1]-centerList[0][1])<contourYDistThresh:
+                if(len(contours)>3):
+                    M = cv2.moments(sortedContours[2])
+                    centerThree = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
+                    centerList.append(centerThree)
+                    if(abs(centerList[0][0]-centerList[2][0])<contourXDistThresh) and abs(centerList[1][1]-centerList[2][1])<contourYDistThresh:
+                        cv2.circle(frame, centerList[0], 10, (0,0,255), -1)
+                        cv2.circle(frame, centerList[2], 10, (0,0,255), -1)
+                        print("putting g3")
+                        carFound=True
+            else:
+                for center in centerList:
+                    #cv2.circle(frame, center, 10, (0,0,255), -1)
+                    carFound=True
+    return carFound
 
 if __name__ == '__main__':
     recieve_message()

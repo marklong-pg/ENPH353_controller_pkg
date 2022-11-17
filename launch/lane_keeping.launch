@@ -1,6 +1,6 @@
 <launch>
 <node pkg="controller_pkg"
-         type="lane_keeping.py"
+         type="right_lane_keeping.py"
          name="lane_keeping"
          output="screen">
 </node>

@@ -14,6 +14,8 @@ from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
 from geometry_msgs.msg import Twist
 
+from licenseTester import findBlueCar
+
 class lane_keeper:
     def __init__(self):
         self.drive_pub = rospy.Publisher('R1/cmd_vel',Twist,queue_size=1)
