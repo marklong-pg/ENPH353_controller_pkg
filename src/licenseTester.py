@@ -43,7 +43,6 @@ class plateProcessor:
         self.saveTag=False
         rospy.Subscriber('/R1/pi_camera/image_raw', Image, self.carDetect,foundCounter,queue_size=1, buff_size=(1000000))
         rospy.spin()
-        print("fuckshitbitch")
         cv2.destroyAllWindows()
 
     def captureSimFeed(self,data,args):
