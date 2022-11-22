@@ -37,14 +37,15 @@ class lane_keeper:
         frame_gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
         (H,W) = frame_gray.shape
         frame_blur = cv2.GaussianBlur(frame_gray,(15,15),10)
-        frame_cut = frame_blur[int(3*H/4):H,0:W]
+        # frame_cut = frame_blur[int(3*H/4):H,0:W]
+        frame_cut = frame_blur[640-20:640+20,0:W].astype(np.uint8)
         # _, frame_bin = cv2.threshold(frame_cut.astype(np.uint8), 200, 255, cv2.THRESH_BINARY)
         _, frame_bin = cv2.threshold(frame_cut, np.max(frame_cut)-20, 255, cv2.THRESH_BINARY)
 
         # get x value of lane center
         trans = []
         for col in range(frame_bin.shape[1]-1,0,-1):
-            if frame_bin[100,col-1] != frame_bin[100,col]:
+            if frame_bin[20,col-1] != frame_bin[20,col]:
                 trans.append(col)
             if len(trans) == 2:
                 break
@@ -57,50 +58,10 @@ class lane_keeper:
         move = Twist()
         move.linear.x = 0.2
         move.angular.z = self.PID_K*(x-1035)/(440 - 1035)
-        cv2.imshow("lane_keep",cv2.circle(cv_image.copy(),(x,H-100),20,(0,0,255),-1))
-        # cv2.imshow("lane_keep",cv2.circle(frame_bin.copy(),(x,100),20,(0,0,255),-1))
+        # cv2.imshow("lane_keep",cv2.circle(cv_image.copy(),(x,H-100),20,(0,0,255),-1))
+        cv2.imshow("lane_keep,",cv2.circle(cv2.cvtColor(frame_bin, cv2.COLOR_GRAY2BGR),(x,20),20,(0,0,255),-1))
+        # cv2.imshow("lane_keep",cv2.circle(cv2.cvtColor(frame_bin, cv2.COLOR_BGR2GRAY),(x,100),20,(0,0,255),-1))
         cv2.waitKey(3)
-
-        # trans = []
-        # for col in range(frame_bin.shape[1]-1):
-        #     if frame_bin[100,col+1] != frame_bin[100,col]:
-        #         trans.append(col+1)
-        # if len(trans) == 4:
-        #     x = 0.5*(trans[1] + trans[2])
-        # elif len(trans) == 3:
-        #     if (trans[1] - trans[0]) > (trans[2] - trans[1]):
-        #         x = 0.5*(trans[0] + trans[1])
-        #     else:
-        #         x = 0.5*(trans[2] + trans[1])
-        # else:
-        #     x = -1
-        #     self.off_road_count += 1
-
-        # if x == -1:
-        #     x = self.previous_x
-        # elif self.off_road_count:
-        #     self.off_road_count = 0
-        #     self.plate_count += 1
-            
-        # self.previous_x = x
-        # x = int(round(x))
-        # print(self.off_road_count)
-
-        # #   Create velocity control message object and publish to topic /cmd_vel
-        # move = Twist()
-        # if (self.off_road_count > 5 and self.plate_count in [1,2]):
-        #     move.linear.x = 0
-        #     move.angular.z = 1
-        # elif (self.plate_count == 5):
-        #     move.linear.x = 0
-        #     move.angular.z = 0
-        #     print(x)
-        # else:
-        #     move.linear.x = 0.2
-        #     move.angular.z = self.PID_K*(1-x/(W/2))      
-        #     # to steer proportional to deviation from line's center
-        # print(f"State {self.plate_count}")
-
         self.drive_pub.publish(move)
     
 def main(args):
