@@ -1,0 +1,13 @@
+<launch>
+<node pkg="controller_pkg"
+         type="master.py"
+         name="concert_master"
+         output="screen">
+</node>
+
+<node pkg="controller_pkg"
+         type="right_lane_keeping.py"
+         name="lane_keeper"
+         output="screen">
+</node>
+</launch>

@@ -16,11 +16,7 @@ class concertmaster:
         msg = f"TeamRed,multi21,{action},XXXX"
         rospy.loginfo(msg)
         self.license_pub.publish(msg)
-        time.sleep(4)
-        if action == 0:
-            self.state = "start_drive"
-        else:
-            self.state = "shutdown"
+        time.sleep(3)
 
 # def start_timer():
 #     pub = rospy.Publisher('/license_plate', String, queue_size=1)
@@ -48,9 +44,21 @@ def main(args):
     try:
         while not rospy.is_shutdown():
             if master.state == "starting":
+                print("Master node startup successful!")
                 master.click_timer(0)
+                master.state = "start_drive"
+
             if master.state == "start_drive":
+                print("Starting Drive")
+                master.drive_enb.publish(1)
+                time.sleep(10)
+                master.state = "end"
+
+            if master.state == "end":
+                print("Ending Drive")
+                master.drive_enb.publish(0)
                 master.click_timer(-1)
+                master.state = "_"
     except rospy.ROSInterruptException:
         pass
 

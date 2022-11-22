@@ -8,7 +8,7 @@ roslib.load_manifest('controller_pkg')
 import sys
 import cv2
 import numpy as np
-from std_msgs.msg import String
+from std_msgs.msg import String, Int8
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
 from geometry_msgs.msg import Twist
@@ -17,16 +17,32 @@ from licenseTester import findBlueCar
 
 class lane_keeper:
     def __init__(self):
+        # Subscribers and Publishers
         self.drive_pub = rospy.Publisher('/R1/cmd_vel',Twist,queue_size=1)
+        self.image_sub = rospy.Subscriber("/R1/pi_camera/image_raw",Image,self.drive)
+        self.master_sub = rospy.Subscriber('/drive_enb',Int8,self.change_gear)
+
+        # Handler Objects
         self.bridge = CvBridge()
-        self.image_sub = rospy.Subscriber("/R1/pi_camera/image_raw",Image,self.callback)
+        self.move = Twist()
+
+        # Variables and flags
         self.PID_K = 7
         self.previous_x = 0
-        self.off_road_count = 0
-        self.plate_count = 0
-        self.off_road = False
+        self.gear = 0
+
+    def change_gear(self,msg):
+        self.gear = msg.data
+        print(f"Gear changed to: {msg.data}") 
     
-    def callback(self,data):
+    def drive(self,data):
+
+        if self.gear == 0:
+            self.move.linear.x = 0
+            self.move.angular.z = 0
+            self.drive_pub.publish(self.move)
+            return
+
         try:
             cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
         except CvBridgeError as e:
@@ -54,13 +70,12 @@ class lane_keeper:
         else:
             x = self.previous_x
 
-        move = Twist()
-        move.linear.x = 0.2
-        move.angular.z = self.PID_K*(x-1035)/(440 - 1035)
+        self.move.linear.x = 0.2 #TODO: change linear speed according to self.gear
+        self.move.angular.z = self.PID_K*(x-1035)/(440 - 1035)
         # cv2.imshow("lane_keep",cv2.circle(cv_image.copy(),(x,H-100),20,(0,0,255),-1))
         cv2.imshow("lane_keep,",cv2.circle(cv2.cvtColor(frame_bin, cv2.COLOR_GRAY2BGR),(x,20),20,(0,0,255),-1))
         cv2.waitKey(3)
-        self.drive_pub.publish(move)
+        self.drive_pub.publish(self.move)
     
 def main(args):
     # Initiate node
