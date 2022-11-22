@@ -1,7 +1,6 @@
 #! /usr/bin/env python3
 
 from __future__ import print_function
-from decimal import DivisionByZero
 
 import rospy
 import roslib
@@ -18,7 +17,7 @@ from licenseTester import findBlueCar
 
 class lane_keeper:
     def __init__(self):
-        self.drive_pub = rospy.Publisher('R1/cmd_vel',Twist,queue_size=1)
+        self.drive_pub = rospy.Publisher('/R1/cmd_vel',Twist,queue_size=1)
         self.bridge = CvBridge()
         self.image_sub = rospy.Subscriber("/R1/pi_camera/image_raw",Image,self.callback)
         self.PID_K = 7
@@ -60,7 +59,6 @@ class lane_keeper:
         move.angular.z = self.PID_K*(x-1035)/(440 - 1035)
         # cv2.imshow("lane_keep",cv2.circle(cv_image.copy(),(x,H-100),20,(0,0,255),-1))
         cv2.imshow("lane_keep,",cv2.circle(cv2.cvtColor(frame_bin, cv2.COLOR_GRAY2BGR),(x,20),20,(0,0,255),-1))
-        # cv2.imshow("lane_keep",cv2.circle(cv2.cvtColor(frame_bin, cv2.COLOR_BGR2GRAY),(x,100),20,(0,0,255),-1))
         cv2.waitKey(3)
         self.drive_pub.publish(move)
     
