@@ -6,6 +6,7 @@ import rospy
 import roslib
 roslib.load_manifest('controller_pkg')
 import sys
+import time
 import cv2
 import numpy as np
 from std_msgs.msg import String, Int8
@@ -33,7 +34,17 @@ class lane_keeper:
 
     def change_gear(self,msg):
         self.gear = msg.data
-        print(f"Gear changed to: {msg.data}") 
+        print(f"Gear changed to: {msg.data}")
+
+    def initial_orient(self):
+        self.move.linear.x = 0.2
+        self.drive_pub.publish(self.move)
+        time.sleep(2)
+        self.move.linear.x = 0
+        self.move.angular.z = 1
+        self.drive_pub.publish(self.move)
+        time.sleep(1.8)
+        self.gear = 0
     
     def drive(self,data):
 
@@ -42,7 +53,9 @@ class lane_keeper:
             self.move.angular.z = 0
             self.drive_pub.publish(self.move)
             return
-
+        elif self.gear == 10:
+            self.initial_orient()
+            
         try:
             cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
         except CvBridgeError as e:

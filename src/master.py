@@ -4,6 +4,7 @@ import rospy
 import sys
 import time
 from std_msgs.msg import String, Int8
+from geometry_msgs.msg import Twist
 
 class concertmaster:
     def __init__(self):
@@ -16,7 +17,8 @@ class concertmaster:
         msg = f"TeamRed,multi21,{action},XXXX"
         rospy.loginfo(msg)
         self.license_pub.publish(msg)
-        time.sleep(3)
+        time.sleep(2)      
+
 
 def main(args):
     master = concertmaster()
@@ -29,9 +31,13 @@ def main(args):
 
             if master.state == "start_drive":
                 print("Starting Drive")
+                master.drive_enb.publish(10)
+                time.sleep(5)
                 master.drive_enb.publish(1)
-                time.sleep(10)
-                master.state = "end"
+                master.state = "in_drive"
+            
+            if master.state == "in_drive":
+                continue
 
             if master.state == "end":
                 print("Ending Drive")
@@ -44,8 +50,3 @@ def main(args):
 
 if __name__ == '__main__':
     main(sys.argv)
-
-    
-    
-    
-
