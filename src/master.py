@@ -31,9 +31,9 @@ def main(args):
 
             if master.state == "start_drive":
                 print("Starting Drive")
-                master.drive_enb.publish(10)
+                master.drive_enb.publish(10) # initial orientation
                 time.sleep(5)
-                master.drive_enb.publish(1)
+                master.drive_enb.publish(1) # start driving
                 master.state = "in_drive"
             
             if master.state == "in_drive":
