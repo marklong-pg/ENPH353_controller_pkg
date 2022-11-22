@@ -18,27 +18,6 @@ class concertmaster:
         self.license_pub.publish(msg)
         time.sleep(3)
 
-# def start_timer():
-#     pub = rospy.Publisher('/license_plate', String, queue_size=1)
-#     rospy.init_node('master', anonymous=True)
-#     rate = rospy.Rate(10)
-#     started = False
-#     while not rospy.is_shutdown():
-#         if not started:
-#             msg = "TeamRead,multi21,0,XXXX"
-#             rospy.loginfo(msg)
-#             pub.publish(msg)
-#             started = True
-#             rate.sleep()
-#         else:
-#             continue
-
-# if __name__ == '__main__':
-#     try:
-#         start_timer()
-#     except rospy.ROSInterruptException:
-#         pass
-
 def main(args):
     master = concertmaster()
     try:
