@@ -10,4 +10,11 @@
          name="lane_keeper"
          output="screen">
 </node>
+
+<node pkg="plate_detector"
+         type="licenseTester.py"
+         name="plate_detector"
+         output="screen">
+</node>
+
 </launch>

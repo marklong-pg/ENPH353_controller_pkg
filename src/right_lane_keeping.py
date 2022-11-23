@@ -55,6 +55,7 @@ class lane_keeper:
             return
         elif self.gear == 10:
             self.initial_orient()
+            return
             
         try:
             cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")

@@ -256,7 +256,7 @@ class plateProcessor:
         self.plate_pub.publish(msg)
 
 def main(args):
-    rospy.init_node("video_sub",anonymous=True)
+    rospy.init_node("license_detector",anonymous=True)
     ic = plateProcessor()
     try:
         rospy.spin()
