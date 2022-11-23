@@ -96,12 +96,12 @@ def main(args):
     rospy.init_node('lane_keeper', anonymous=True)
     # Create a converter object with Subscribing and Publishing functions
     ic = lane_keeper()
-    # try:
-    #     # Subscribe to incoming data from camera continously 
-    #     rospy.spin()
-    # except KeyboardInterrupt:
-    #     print("Shutting Down Lane Keeping")
-    # cv2.destroyAllWindows()
+    try:
+        # Subscribe to incoming data from camera continously 
+        rospy.spin()
+    except KeyboardInterrupt:
+        print("Shutting Down Lane Keeping")
+    cv2.destroyAllWindows()
 
 if __name__ == '__main__':
     main(sys.argv)

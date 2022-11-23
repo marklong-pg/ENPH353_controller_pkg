@@ -11,7 +11,7 @@
          output="screen">
 </node>
 
-<node pkg="plate_detector"
+<node pkg="controller_pkg"
          type="licenseTester.py"
          name="plate_detector"
          output="screen">

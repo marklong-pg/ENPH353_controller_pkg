@@ -14,7 +14,14 @@ import roslaunch
 import functools
 import time
 import numpy as np
+import pickle
 # import imutils
+
+# import tensorflow as tf
+# from tensorflow.python.keras.backend import set_session
+# from tensorflow.python.keras.models import load_model
+# from tensorflow.keras import models
+ 
 
 from cv_bridge import CvBridge, CvBridgeError
 from gym import utils, spaces
@@ -32,9 +39,15 @@ from matplotlib import pyplot as plt
 from PIL import Image as im
 import sys
 
+# #sess1 = tf.Session() 
+# sess1=tf.compat.v1.Session()
+# graph1 = tf.compat.v1.get_default_graph()
+# set_session(sess1)
+
 
 class plateProcessor:
     def __init__(self):
+
         foundCounter=0
         #self.founCounterPub=rospy.Publisher("/R1/foundCounter",int,queue_size=1)
         self.prevCarTime=0
@@ -42,10 +55,17 @@ class plateProcessor:
         self.startTime=time.time()
         self.imList=[]
         self.saveTag=False
+
+        # letterModel = open("/home/fizzer/ros_ws/src/controller_pkg/src/LetterConvModel.pickle", 'rb')
+        # numberModel = open("/home/fizzer/ros_ws/src/controller_pkg/src/NumberConvModel.pickle", 'rb')
+        # self.letterConvModel= tf.keras.models.load_model('/home/fizzer/ros_ws/src/controller_pkg/src/LabConvModel/')
+        # self.numberConvModel=None
+
         self.plate_pub=rospy.Publisher('/license_plate', String, queue_size=1)
         rospy.Subscriber('/R1/pi_camera/image_raw', Image, self.carDetect,foundCounter,queue_size=1, buff_size=(1000000))
-        rospy.spin()
-        cv2.destroyAllWindows()
+
+        # rospy.spin()
+        # cv2.destroyAllWindows()
 
     def captureSimFeed(self,data,args):
         br = CvBridge()
@@ -77,7 +97,7 @@ class plateProcessor:
         contourYDistThresh=100
         tooCloseXThresh=30
         
-        print("stay woke")
+        #print("stay woke")
 
         #rospy.loginfo("receiving video frame")
 
@@ -137,7 +157,7 @@ class plateProcessor:
                     zeroedInEdges=self.locateCar(centerList,frame.shape[1]/2)
                     colourZeroedIn=frame[:,zeroedInEdges[0]:zeroedInEdges[1]] # all parts of image included
                     maskedZeroedIn=result[:,zeroedInEdges[0]:zeroedInEdges[1]] # only blue parts of image included
-                    cv2.imshow("colourZeroedIn",colourZeroedIn)
+                    #cv2.imshow("colourZeroedIn",colourZeroedIn)
                     foundPlate=self.findPlate(maskedZeroedIn,colourZeroedIn,centerList)
                     
                     cv2.imshow("License Plate",foundPlate)
@@ -150,21 +170,28 @@ class plateProcessor:
                     character3=self.letterFilter(foundPlate[410:580,300:390])
                     character4=self.letterFilter(foundPlate[410:580,390:480])
 
+                    characterSet=[character1,character2,character3,character4]
+
+                    platePrediction=""
+                    # for i in range(len(characterSet)):
+                    #     #platePrediction=platePrediction+self.predictCharacter(characterSet[i])#,i<2)
+                    #     print("predict")
+                        
+
                     first2Merge=np.concatenate((character1, character2), axis=1)
                     first3Merge=np.concatenate((first2Merge, character3), axis=1)
                     allMerge=np.concatenate((first3Merge, character4), axis=1)
-                    cv2.imshow("Plate characters",allMerge)
+                    cv2.imshow(platePrediction,allMerge)
+                    cv2.waitKey(3)
 
                     self.prevCarTime=time.time()
-                    print("im shleep")
+                    #print("im shleep")
                     #cv2.imshow("tight",self.locateCar(frame,centerList))
                     #self.founCounterPub.publish(self.foundCounter)
             #After I detect the car, I need to zero in on the license plate
             #After this find various homographies for stopping positions, train neural net (blue and transform license "paltes to train)
             #test together
-        else:
-            print("keep going")
-        
+
         cv2.imshow("car?",frame2)
         cv2.waitKey(3)
 
@@ -234,6 +261,43 @@ class plateProcessor:
         result = cv2.bitwise_and(img, img, mask = mask)
 
         return result
+
+    def predictCharacter(self,character, num):
+
+        #conver the letter to gray scale
+        imgGray=cv2.cvtColor(character,cv2.COLOR_BGR2GRAY)
+        _, img_bin = cv2.threshold(imgGray, 1, 255, cv2.THRESH_BINARY)
+        threeChannelGray=cv2.merge((img_bin,img_bin,img_bin))
+        testModelInput=threeChannelGray
+
+
+        contours,_=cv2.findContours(img_bin,cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+        contours=sorted(contours, key=cv2.contourArea,reverse=True)
+        x,y,w,h = cv2.boundingRect(contours[0])
+        toPredict=cv2.resize(toPredict[y: y+h, x: x+w],(110,140))
+        img_aug = np.expand_dims(toPredict, axis=0)
+
+        # if num:
+        #     y_predict = self.numberConvModel.predict(img_aug)[0] 
+        #     predictedNumber=np.argmax(y_predict)
+        #     return str(predictedNumber)
+        # else:
+
+        global sess1
+        global graph1
+
+        with graph1.as_default():
+            set_session(sess1)
+            NN_prediction = self.letterConvModel.predict(img_aug)[0]
+            return (chr(NN_prediction+65))
+
+        y_predict = self.letterConvModel.predict(img_aug)[0] 
+        predictedNumber=np.argmax(y_predict)
+        return (chr(predictedNumber+65))
+
+
+
+        return (chr(predictedNumber+65))
         
     def contourCenterX(contour):
         M=cv2.moments(contour)
