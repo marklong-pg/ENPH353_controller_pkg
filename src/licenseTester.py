@@ -64,16 +64,16 @@ class plateProcessor:
         br = CvBridge()
         frame = br.imgmsg_to_cv2(data,desired_encoding='bgr8')
         
-        # if(time.time()-self.prevCarTime<2):
-        #     return
+        if(time.time()-self.prevCarTime<2):
+            print("im shleep")
+            return
 
         #blue thresholds for the hsv image, tuned for vehicle blue
         lower_blue = np.array([100, 125, 100])
         upper_blue = np.array([255, 255, 255])
-        contourXDistThresh=255
+        contourXDistThresh=250
         contourYDistThresh=100
-        tooCloseXThresh=40
-        frame2=np.copy(frame)
+        tooCloseXThresh=30
         
         print("stay woke")
 
@@ -83,6 +83,7 @@ class plateProcessor:
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
         mask = cv2.inRange(hsv, lower_blue, upper_blue)
         result = cv2.bitwise_and(frame, frame, mask = mask)
+        frame2=np.copy(frame)
         #cv2.imshow("masked",result)
 
         #Find contours to verify how close we are to the vehicle
@@ -92,15 +93,16 @@ class plateProcessor:
         carFound=False
 
         #If we are detecting 2 wedges
-        if len(contours)>2:
+        if len(contours)>=2:
             sortedContours=sorted(contours, key=cv2.contourArea, reverse=True) 
             centerList=[]
             
             #If both wedges are big enough for us to be close to the vehicle
-            if(cv2.contourArea(sortedContours[0])>10000 and cv2.contourArea(sortedContours[1])>1500):
+            if(cv2.contourArea(sortedContours[0])>15000 and cv2.contourArea(sortedContours[1])>2000):
                 print("STOP: CAR DETECTED")
                 #mage=im.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-                #mage.save("bruh.png")
+                #mage.save("carDetected.png")
+
                 #check that the first two contours are close together to confirm they are part of the
                 # same car, if not check the first one with the third. 
                 for i in range(2):
@@ -129,11 +131,22 @@ class plateProcessor:
                 if carFound:
                     args+=1
                     rgbFrame=cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-                    zeroedInEdges=self.locateCar(centerList,frame.shape[1])
-                    colourZeroedIn=frame[:,zeroedInEdges[0]:zeroedInEdges[1]]
-                    maskedZeroedIn=result[:,zeroedInEdges[0]:zeroedInEdges[1]]
-                    cv2.imshow("License Plate",self.findPlate(maskedZeroedIn,colourZeroedIn,centerList))
+
+                    zeroedInEdges=self.locateCar(centerList,frame.shape[1]/2)
+                    colourZeroedIn=frame[:,zeroedInEdges[0]:zeroedInEdges[1]] # all parts of image included
+                    maskedZeroedIn=result[:,zeroedInEdges[0]:zeroedInEdges[1]] # only blue parts of image included
+                    cv2.imshow("colourZeroedIn",colourZeroedIn)
+                    foundPlate=self.findPlate(maskedZeroedIn,colourZeroedIn,centerList)
+                    
+                    cv2.imshow("License Plate",foundPlate)
                     cv2.waitKey(3)
+
+                    foundPlate=cv2.resize(foundPlate,None, fx=5,fy=5) #scale to give some size to the image to make extracting contours easier
+                    cv2.imshow("Character 1", self.letterFilter(foundPlate[410:580,20:120]))
+                    cv2.imshow("Character 2", self.letterFilter(foundPlate[410:580,120:210]))
+                    cv2.imshow("Character 3", self.letterFilter(foundPlate[410:580,300:390]))
+                    cv2.imshow("Character 4", self.letterFilter(foundPlate[410:580,390:480]))
+
                     self.prevCarTime=time.time()
                     print("im shleep")
                     #cv2.imshow("tight",self.locateCar(frame,centerList))
@@ -166,17 +179,23 @@ class plateProcessor:
         return (leftEdge,rightEdge)
     
     def findPlate(self, colourMasked, img, centers):
+        
+        # convert the blue only image to gray scale to find contours
         img_gray = cv2.cvtColor(colourMasked, cv2.COLOR_BGR2GRAY)
         # plt.imshow(img_gray,cmap='gray')
         # plt.show()
-        threshold = 1 #THRESHOLD VALUE SEEMS TO CHANGE AT DIFFERENT VEHICLES
+        threshold = 1 
         _, img_bin = cv2.threshold(img_gray, threshold, 255, cv2.THRESH_BINARY) #apply binary mask
+
+
         centerY=int(sum([center[1] for center in centers])/2)
         relevantRow=img_bin[centerY]
+        # moving avg window size
         windowSize=5
         i=0
         prevAvg=0
         
+        # detecting edges by moving average
         while i<len(relevantRow)-windowSize+1:
             window=relevantRow[i:i+windowSize]
             windowAvg=sum(window)/windowSize
@@ -197,14 +216,12 @@ class plateProcessor:
     
         return img[centerY-50:centerY+100,i:g]
 
-    def letterFilter(img):
+    def letterFilter(self,img):
         #colour thresholding
-        lower_blue = np.array([50, 80, 0])
+        lower_blue = np.array([90, 65, 0])
         upper_blue = np.array([255, 255, 255])
-        centerList=[]
-        retList=[]
 
-        hsv = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
         mask = cv2.inRange(hsv, lower_blue, upper_blue)
         result = cv2.bitwise_and(img, img, mask = mask)
 
