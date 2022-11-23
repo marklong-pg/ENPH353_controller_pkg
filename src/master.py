@@ -17,7 +17,7 @@ class concertmaster:
         msg = f"TeamRed,multi21,{action},XXXX"
         rospy.loginfo(msg)
         self.license_pub.publish(msg)
-        time.sleep(2)      
+        time.sleep(2)
 
 
 def main(args):
