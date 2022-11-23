@@ -23,6 +23,7 @@ from geometry_msgs.msg import Twist
 from std_srvs.srv import Empty
 
 from sensor_msgs.msg import Image
+from std_msgs.msg import String
 from time import sleep
 
 from gym.utils import seeding
@@ -41,6 +42,7 @@ class plateProcessor:
         self.startTime=time.time()
         self.imList=[]
         self.saveTag=False
+        self.plate_pub=rospy.Publisher('/license_plate', String, queue_size=1)
         rospy.Subscriber('/R1/pi_camera/image_raw', Image, self.carDetect,foundCounter,queue_size=1, buff_size=(1000000))
         rospy.spin()
         cv2.destroyAllWindows()
@@ -142,10 +144,16 @@ class plateProcessor:
                     cv2.waitKey(3)
 
                     foundPlate=cv2.resize(foundPlate,None, fx=5,fy=5) #scale to give some size to the image to make extracting contours easier
-                    cv2.imshow("Character 1", self.letterFilter(foundPlate[410:580,20:120]))
-                    cv2.imshow("Character 2", self.letterFilter(foundPlate[410:580,120:210]))
-                    cv2.imshow("Character 3", self.letterFilter(foundPlate[410:580,300:390]))
-                    cv2.imshow("Character 4", self.letterFilter(foundPlate[410:580,390:480]))
+                    
+                    character1=self.letterFilter(foundPlate[410:580,20:120])
+                    character2=self.letterFilter(foundPlate[410:580,120:210])
+                    character3=self.letterFilter(foundPlate[410:580,300:390])
+                    character4=self.letterFilter(foundPlate[410:580,390:480])
+
+                    first2Merge=np.concatenate((character1, character2), axis=1)
+                    first3Merge=np.concatenate((first2Merge, character3), axis=1)
+                    allMerge=np.concatenate((first3Merge, character4), axis=1)
+                    cv2.imshow("Plate characters",allMerge)
 
                     self.prevCarTime=time.time()
                     print("im shleep")
@@ -242,51 +250,10 @@ class plateProcessor:
         numbers=list(map(functools.partial(self.boundedRectContour,bigPicture=image),sortedContours[2:]))
         return letters,numbers
 
-    def findBlueCar(frame):
-        lower_blue = np.array([100, 125, 100])
-        upper_blue = np.array([255, 255, 255])
-        contourXDistThresh=400
-        contourYDistThresh=100
-        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        mask = cv2.inRange(hsv, lower_blue, upper_blue)
-        result = cv2.bitwise_and(frame, frame, mask = mask)
-        #cv2.imshow("masked",result)
-
-        #Find contours to verify how close we are to the vehicle
-        img = cv2.cvtColor(result, cv2.COLOR_RGB2GRAY)
-        contours, _ = cv2.findContours(img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-        contours=[contour for contour in contours if cv2.contourArea(contour)]
-        carFound=False
-
-        #If we are detecting 2 wedges
-        if len(contours)>2:
-            sortedContours=sorted(contours, key=cv2.contourArea, reverse=True) 
-            centerList=[]
-            
-            #If both wedges are big enough for us to be close to the vehicle
-            if(cv2.contourArea(sortedContours[0])>10000 and cv2.contourArea(sortedContours[1])>3000):
-                print("STOP: CAR DETECTED")
-                #need to change this so that I can detect the cars based on the 2 largest contours that are less that some distance apart (<400 from inital testing)
-                #solution appears to be look at the largest 3 contours, sort based on minimization of center in x
-                for i in range(2):
-                    M = cv2.moments(sortedContours[i])
-                    center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
-                    centerList.append(center)
-                if abs(centerList[1][0]-centerList[0][0])>contourXDistThresh and abs(centerList[1][1]-centerList[0][1])<contourYDistThresh:
-                    if(len(contours)>3):
-                        M = cv2.moments(sortedContours[2])
-                        centerThree = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
-                        centerList.append(centerThree)
-                        if(abs(centerList[0][0]-centerList[2][0])<contourXDistThresh) and abs(centerList[1][1]-centerList[2][1])<contourYDistThresh:
-                            cv2.circle(frame, centerList[0], 10, (0,0,255), -1)
-                            cv2.circle(frame, centerList[2], 10, (0,0,255), -1)
-                            print("putting g3")
-                            carFound=True
-                else:
-                    for center in centerList:
-                        #cv2.circle(frame, center, 10, (0,0,255), -1)
-                        carFound=True
-        return carFound
+    def sendPlate(self, plateString, plateID):
+        msg=f"TeamRed,multi21,{plateID},{plateString}"
+        rospy.loginfo(msg)
+        self.plate_pub.publish(msg)
 
 def main(args):
     rospy.init_node("video_sub",anonymous=True)
