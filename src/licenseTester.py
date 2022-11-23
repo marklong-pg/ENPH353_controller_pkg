@@ -257,6 +257,7 @@ class plateProcessor:
 
 def main(args):
     rospy.init_node("license_detector",anonymous=True)
+    sleep(2)
     ic = plateProcessor()
     try:
         rospy.spin()
