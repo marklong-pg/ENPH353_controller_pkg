@@ -4,7 +4,7 @@ from __future__ import print_function
 
 import rospy
 import roslib
-roslib.load_manifest('controller_pkg')
+#roslib.load_manifest('controller_pkg')
 import sys
 import time
 import cv2
@@ -14,7 +14,7 @@ from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
 from geometry_msgs.msg import Twist
 
-from licenseTester import findBlueCar
+#from licenseTester import findBlueCar
 
 class lane_keeper:
     def __init__(self):
@@ -96,12 +96,12 @@ def main(args):
     rospy.init_node('lane_keeper', anonymous=True)
     # Create a converter object with Subscribing and Publishing functions
     ic = lane_keeper()
-    try:
-        # Subscribe to incoming data from camera continously 
-        rospy.spin()
-    except KeyboardInterrupt:
-        print("Shutting Down Lane Keeping")
-    cv2.destroyAllWindows()
+    # try:
+    #     # Subscribe to incoming data from camera continously 
+    #     rospy.spin()
+    # except KeyboardInterrupt:
+    #     print("Shutting Down Lane Keeping")
+    # cv2.destroyAllWindows()
 
 if __name__ == '__main__':
     main(sys.argv)
