@@ -15,12 +15,13 @@ import functools
 import time
 import numpy as np
 import pickle
+import os
 # import imutils
 
-# import tensorflow as tf
-# from tensorflow.python.keras.backend import set_session
-# from tensorflow.python.keras.models import load_model
-# from tensorflow.keras import models
+import tensorflow as tf
+from tensorflow.python.keras.backend import set_session
+from tensorflow.python.keras.models import load_model
+from tensorflow.keras import models
  
 
 from cv_bridge import CvBridge, CvBridgeError
@@ -39,10 +40,12 @@ from matplotlib import pyplot as plt
 from PIL import Image as im
 import sys
 
-# #sess1 = tf.Session() 
-# sess1=tf.compat.v1.Session()
-# graph1 = tf.compat.v1.get_default_graph()
-# set_session(sess1)
+os.environ['CUDA_VISIBLE_DEVICES'] = "0"
+
+#sess1 = tf.Session() 
+sess1=tf.compat.v1.Session()
+graph1 = tf.compat.v1.get_default_graph()
+set_session(sess1)
 
 
 class plateProcessor:
@@ -58,8 +61,8 @@ class plateProcessor:
 
         # letterModel = open("/home/fizzer/ros_ws/src/controller_pkg/src/LetterConvModel.pickle", 'rb')
         # numberModel = open("/home/fizzer/ros_ws/src/controller_pkg/src/NumberConvModel.pickle", 'rb')
-        # self.letterConvModel= tf.keras.models.load_model('/home/fizzer/ros_ws/src/controller_pkg/src/LabConvModel/')
-        # self.numberConvModel=None
+        self.letterConvModel= tf.keras.models.load_model('/home/fizzer/ros_ws/src/controller_pkg/src/AugDataModel/')
+        self.numberConvModel=None
 
         self.plate_pub=rospy.Publisher('/license_plate', String, queue_size=1)
         rospy.Subscriber('/R1/pi_camera/image_raw', Image, self.carDetect,foundCounter,queue_size=1, buff_size=(1000000))
@@ -167,21 +170,24 @@ class plateProcessor:
                     
                     character1=self.letterFilter(foundPlate[410:580,20:120])
                     character2=self.letterFilter(foundPlate[410:580,120:210])
-                    character3=self.letterFilter(foundPlate[410:580,300:390])
-                    character4=self.letterFilter(foundPlate[410:580,390:480])
+                    character3=self.letterFilter(foundPlate[410:580,240:330])
+                    character4=self.letterFilter(foundPlate[410:580,350:430])
 
                     characterSet=[character1,character2,character3,character4]
 
-                    platePrediction=""
-                    # for i in range(len(characterSet)):
-                    #     #platePrediction=platePrediction+self.predictCharacter(characterSet[i])#,i<2)
-                    #     print("predict")
-                        
+                    platePredictions=[]
+                    for i in range(len(characterSet)):
+                        platePredictions.append(self.predictCharacter(characterSet[i]))#,i<2)
+                        print("predict")
+                    cv2.imshow("character 1",character1)
+                    cv2.imshow("character 2",character2)
+                    cv2.imshow("character 3",character3)
+                    cv2.imshow("character 4",character4)
 
-                    first2Merge=np.concatenate((character1, character2), axis=1)
-                    first3Merge=np.concatenate((first2Merge, character3), axis=1)
-                    allMerge=np.concatenate((first3Merge, character4), axis=1)
-                    cv2.imshow(platePrediction,allMerge)
+                    # first2Merge=np.concatenate((character1, character2), axis=1)
+                    # first3Merge=np.concatenate((first2Merge, character3), axis=1)
+                    # allMerge=np.concatenate((first3Merge, character4), axis=1)
+                    # cv2.imshow(platePrediction,allMerge)
                     cv2.waitKey(3)
 
                     self.prevCarTime=time.time()
@@ -262,7 +268,7 @@ class plateProcessor:
 
         return result
 
-    def predictCharacter(self,character, num):
+    def predictCharacter(self,character, num=0):
 
         #conver the letter to gray scale
         imgGray=cv2.cvtColor(character,cv2.COLOR_BGR2GRAY)
@@ -270,12 +276,14 @@ class plateProcessor:
         threeChannelGray=cv2.merge((img_bin,img_bin,img_bin))
         testModelInput=threeChannelGray
 
-
         contours,_=cv2.findContours(img_bin,cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
         contours=sorted(contours, key=cv2.contourArea,reverse=True)
         x,y,w,h = cv2.boundingRect(contours[0])
-        toPredict=cv2.resize(toPredict[y: y+h, x: x+w],(110,140))
-        img_aug = np.expand_dims(toPredict, axis=0)
+        toPredict=cv2.resize(testModelInput[y: y+h, x: x+w],(110,140))
+        cv2.imshow("testModelInput", toPredict)
+        img_aug = tf.cast(toPredict, tf.float32)
+        img_aug = np.expand_dims(img_aug, axis=0)
+        #cv2.imshow("aug img",img_aug)
 
         # if num:
         #     y_predict = self.numberConvModel.predict(img_aug)[0] 
@@ -286,10 +294,11 @@ class plateProcessor:
         global sess1
         global graph1
 
-        with graph1.as_default():
-            set_session(sess1)
-            NN_prediction = self.letterConvModel.predict(img_aug)[0]
-            return (chr(NN_prediction+65))
+        # with graph1.as_default():
+        #     set_session(sess1)
+        NN_prediction = self.letterConvModel.predict(img_aug)[0]
+        predictedNumber=np.argmax(NN_prediction)
+        return (chr(predictedNumber+65))
 
         y_predict = self.letterConvModel.predict(img_aug)[0] 
         predictedNumber=np.argmax(y_predict)
