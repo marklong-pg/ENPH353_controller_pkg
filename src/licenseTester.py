@@ -162,56 +162,81 @@ class plateProcessor:
                     #cv2.imshow("colourZeroedIn",colourZeroedIn)
                     foundPlate=self.findPlate(maskedZeroedIn,colourZeroedIn,centerList)
                     
-                    cv2.imshow("License Plate",foundPlate)
-                    cv2.waitKey(3)
+                    # cv2.imshow("License Plate",foundPlate)
+                    # cv2.waitKey(3)
 
-                    foundPlate=cv2.resize(foundPlate,None, fx=5,fy=5) #scale to give some size to the image to make extracting contours easier
+                    # foundPlate=cv2.resize(foundPlate,None, fx=5,fy=5) #scale to give some size to the image to make extracting contours easier
                     
-                    character1=self.letterFilter(foundPlate[410:580,20:120])
-                    character2=self.letterFilter(foundPlate[410:580,120:210])
-                    character3=self.letterFilter(foundPlate[410:580,240:330])
-                    character4=self.letterFilter(foundPlate[410:580,350:430])
+                    # character1=self.letterFilter(foundPlate[410:580,20:120])
+                    # character2=self.letterFilter(foundPlate[410:580,120:210])
+                    # character3=self.letterFilter(foundPlate[410:580,240:330])
+                    # character4=self.letterFilter(foundPlate[410:580,350:430])
 
-                    characterSet=[character1,character2,character3,character4]
+                    # characterSet=[character1,character2,character3,character4]
 
-                    platePredictions=[]
-                    for i in range(len(characterSet)):
-                        platePredictions.append(self.predictCharacter(characterSet[i],i>1))
-                       #print("predict")
+                    # platePredictions=[]
+                    # for i in range(len(characterSet)):
+                    #     platePredictions.append(self.predictCharacter(characterSet[i],i>1))
+                    #    #print("predict")
 
-                    print(platePredictions)
+                    # # cv2.imshow("character 1",character1)
+                    # # cv2.imshow("character 2",character2)
+                    # # cv2.imshow("character 3",character3)
+                    # # cv2.imshow("character 4",character4)
 
-                    # cv2.imshow("character 1",character1)
-                    # cv2.imshow("character 2",character2)
-                    # cv2.imshow("character 3",character3)
-                    # cv2.imshow("character 4",character4)
+                    # prediction=""
+                    # #mergedPlate=np.empty((0,0))
 
-                    prediction=""
-                    #mergedPlate=np.empty((0,0))
+                    # for character in platePredictions:
+                    #     prediction+=character[0]
+                    #     #mergedPlate=np.concatenate(mergedPlate,character[1])
 
-                    for character in platePredictions:
-                        prediction+=character[0]
-                        #mergedPlate=np.concatenate(mergedPlate,character[1])
-
-                    first2Merge=np.concatenate((platePredictions[0][1], platePredictions[1][1]), axis=1)
-                    first3Merge=np.concatenate((first2Merge, platePredictions[2][1]), axis=1)
-                    allMerge=np.concatenate((first3Merge, platePredictions[3][1]), axis=1)
+                    # # first2Merge=np.concatenate((platePredictions[0][1], platePredictions[1][1]), axis=1)
+                    # # first3Merge=np.concatenate((first2Merge, platePredictions[2][1]), axis=1)
+                    # # allMerge=np.concatenate((first3Merge, platePredictions[3][1]), axis=1)
 
                     self.carCount+=1
-                    plateId=1 if self.carCount==6 else self.carCount+1
+                    # plateId=1 if self.carCount==6 else self.carCount+1
 
-                    print("car "+ str(plateId)+ ", plate"+ prediction)
-                    self.sendPlate(prediction,plateId)
+                    # print("car "+ str(plateId)+ ", plate"+ prediction)
+                    # self.sendPlate(prediction,plateId)
 
-                    if self.carCount==6:
-                        self.sendPlate(prediction,"-1")
+                    # if self.carCount==6:
+                    #     self.sendPlate(prediction,"-1")
+
 
                     # first2Merge=np.concatenate((character1, character2), axis=1)
                     # first3Merge=np.concatenate((first2Merge, character3), axis=1)
                     # allMerge=np.concatenate((first3Merge, character4), axis=1)
-                    cv2.imshow("letter cropped plate",allMerge)
-                    cv2.waitKey(3)
+                    
+                    # cv2.imshow("letter cropped plate",allMerge)
+                    # cv2.waitKey(3)
 
+                    #cv2.imshow("colourZeroedIn", colourZeroedIn)
+                    plateFindV2=self.findPlateV2(colourZeroedIn)
+                    cv2.imshow("plateFindV2", plateFindV2)
+                    character1=self.letterFilter(cv2.resize(plateFindV2[:,:21],None,fx=5,fy=5))
+                    character2=self.letterFilter(cv2.resize(plateFindV2[:,21:40],None,fx=5,fy=5))
+                    character3=self.letterFilter(cv2.resize(plateFindV2[:,48:65],None,fx=5,fy=5))
+                    character4=self.letterFilter(cv2.resize(plateFindV2[:,65:],None,fx=5,fy=5))
+                    # first2Merge=np.concatenate((character1, character2), axis=1)
+                    # first3Merge=np.concatenate((first2Merge, character3), axis=1)
+                    # allMerge=np.concatenate((first3Merge, character4), axis=1)
+
+                    characterSet=[character1,character2,character3,character4]
+                    platePredictions=[]
+                    for i in range(len(characterSet)):
+                        platePredictions.append(self.predictCharacter(characterSet[i],i>1)) 
+
+                    prediction=""
+                    for character in platePredictions:
+                        prediction+=character[0]
+                    print(prediction)
+
+                    first2Merge=np.concatenate((platePredictions[0][1], platePredictions[1][1]), axis=1)
+                    first3Merge=np.concatenate((first2Merge, platePredictions[2][1]), axis=1)
+                    allMerge=np.concatenate((first3Merge, platePredictions[3][1]), axis=1)
+                    cv2.imshow("letter cropped plate2",allMerge)    
                     self.prevCarTime=time.time()
                     #print("im shleep")
                     #cv2.imshow("tight",self.locateCar(frame,centerList))
@@ -347,6 +372,76 @@ class plateProcessor:
         msg=f"TeamRed,multi21,{plateID},{plateString}"
         rospy.loginfo(msg)
         self.plate_pub.publish(msg)
+
+
+    def findPlateV2(self, carBack):
+
+        lower_blue = np.array([100, 125, 100])
+        upper_blue = np.array([255, 255, 255])
+        hsv = cv2.cvtColor(carBack, cv2.COLOR_BGR2HSV)
+        mask = cv2.inRange(hsv, lower_blue, upper_blue)
+        notMask=cv2.bitwise_not(mask)
+        result = cv2.bitwise_and(carBack, carBack, mask = mask)
+        notResult = cv2.bitwise_and(carBack, carBack, mask = notMask)
+        cv2.imshow("result", result)
+        cv2.waitKey(3)
+
+        grayFiltered = cv2.cvtColor(result, cv2.COLOR_RGB2GRAY)
+        contours, _ = cv2.findContours    (grayFiltered, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+        sortedContours=sorted(contours, key=cv2.contourArea, reverse=True)
+        centerList=[]
+        for i in range(2):
+            M = cv2.moments(sortedContours[i])
+            centerThree = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
+            centerList.append(centerThree)
+        
+        notPlateFind=self.findPlate(result, notResult, centerList)
+        plateFind=self.findPlate(result, carBack,centerList)
+
+        cv2.imshow("notPlateFind", notPlateFind)
+        cv2.waitKey(3)
+        
+        plateOnly=self.plateFilter(notPlateFind, plateFind)
+
+        if 2<self.carCount<5:     
+            lower_plateGray = np.array([104, 0, 121])
+            upper_plateGray = np.array([153, 66, 187])
+        else:
+            lower_plateGray = np.array([0, 2, 31])
+            upper_plateGray = np.array([174, 68, 95])
+
+
+        hsv = cv2.cvtColor(plateOnly, cv2.COLOR_BGR2HSV)
+        mask = cv2.inRange(hsv, lower_plateGray, upper_plateGray)
+        notMask=cv2.bitwise_not(mask)
+        result = cv2.bitwise_and(plateOnly, plateOnly, mask = mask)
+        
+        return plateOnly 
+    
+    def plateFilter(self, carBack, colourCarBack):
+        #carBack=carDetectFrames[0][0][2]
+        if 2<self.carCount<5:     
+            lower_plateGray = np.array([104, 0, 121])
+            upper_plateGray = np.array([153, 66, 187])
+        else:
+            lower_plateGray = np.array([0, 2, 31])
+            upper_plateGray = np.array([174, 20, 115])
+            
+        hsv = cv2.cvtColor(carBack, cv2.COLOR_BGR2HSV)
+        mask = cv2.inRange(hsv, lower_plateGray, upper_plateGray) 
+        result = cv2.bitwise_and(carBack, carBack, mask = mask)
+        
+        cv2.imshow("plate filter mask",result)
+        cv2.waitKey(2)
+        
+        grayFiltered = cv2.cvtColor(result, cv2.COLOR_BGR2GRAY)
+        contours, _ = cv2.findContours(grayFiltered, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+        sortedContours=sorted(contours, key=cv2.contourArea, reverse=True)
+
+        x,y,w,h = cv2.boundingRect(sortedContours[0])
+        
+
+        return colourCarBack[y: y+h, x: x+w]
 
 def main(args):
     rospy.init_node("license_detector",anonymous=True)
