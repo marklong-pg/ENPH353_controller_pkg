@@ -17,4 +17,10 @@
          output="screen">
 </node>
 
+<node pkg="controller_pkg"
+         type="pedes.py"
+         name="pedes_kicker"
+         output="screen">
+</node>
+
 </launch>
