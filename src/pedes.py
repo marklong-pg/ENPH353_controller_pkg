@@ -18,6 +18,7 @@ class pedes_kicker:
     def __init__(self):
         self.drive_pub = rospy.Publisher('/drive_enb',Int8,queue_size=1)
         self.image_sub = rospy.Subscriber("/R1/pi_camera/image_raw",Image,self.pedes_handler)
+        self.plate_count_sub = rospy.Subscriber("/car_count",Int8,self.car_count_printer)
 
         # Handler objects
         self.bridge = CvBridge()
@@ -34,7 +35,10 @@ class pedes_kicker:
         self.high_red = np.array([10, 255, 255])
 
         self.low_blue = np.array([100,50,20])
-        self.high_blue = np.array([110,140,120])            
+        self.high_blue = np.array([110,140,120]) 
+
+    def car_count_printer(self,data):
+        print(data)           
 
     def pedes_handler(self,data):
         try:

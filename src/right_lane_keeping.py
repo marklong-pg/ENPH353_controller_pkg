@@ -87,8 +87,8 @@ class lane_keeper:
         self.move.linear.x = 0.2 #TODO: change linear speed according to self.gear
         self.move.angular.z = self.PID_K*(x-1035)/(440 - 1035)
         # cv2.imshow("lane_keep",cv2.circle(cv_image.copy(),(x,H-100),20,(0,0,255),-1))
-        cv2.imshow("lane_keep,",cv2.circle(cv2.cvtColor(frame_bin, cv2.COLOR_GRAY2BGR),(x,20),20,(0,0,255),-1))
-        cv2.waitKey(3)
+        #cv2.imshow("lane_keep,",cv2.circle(cv2.cvtColor(frame_bin, cv2.COLOR_GRAY2BGR),(x,20),20,(0,0,255),-1))
+        #cv2.waitKey(3)
         self.drive_pub.publish(self.move)
     
 def main(args):

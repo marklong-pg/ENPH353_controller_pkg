@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
+
 import gym
 from gym import wrappers
 import gym_gazebo
-import time
 import numpy
 import random
+import time
 import time
 import cv2
 import gym
@@ -31,14 +32,16 @@ from geometry_msgs.msg import Twist
 from std_srvs.srv import Empty
 
 from sensor_msgs.msg import Image
-from std_msgs.msg import String
+from std_msgs.msg import String, Int8
 from time import sleep
 
 from gym.utils import seeding
 
 from matplotlib import pyplot as plt
 from PIL import Image as im
+from PIL import ImageEnhance
 import sys
+import csv
 
 os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 
@@ -60,10 +63,21 @@ class plateProcessor:
         self.carCount=0
         self.saveTag=False
 
-        self.letterConvModel= tf.keras.models.load_model('/home/fizzer/ros_ws/src/controller_pkg/src/AugDataModel/')
-        self.numberConvModel= tf.keras.models.load_model('/home/fizzer/ros_ws/src/controller_pkg/src/NumDataAugModel/')
+        plateFile=open("/home/fizzer/ros_ws/src/2022_competition/enph353/enph353_gazebo/scripts/plates.csv")
+        plateReader=csv.reader(plateFile)
+
+        self.plateList=[]
+        for row in plateReader:
+            self.plateList.append(row[0]+"_"+str(time.time()%1000))
+
+        print(self.plateList)
+
+        # self.letterConvModel= tf.keras.models.load_model('/home/fizzer/ros_ws/src/controller_pkg/src/LetterModelSimData/')
+        # self.numberConvModel= tf.keras.models.load_model('/home/fizzer/ros_ws/src/controller_pkg/src/NumModelSimData/')
 
         self.plate_pub=rospy.Publisher('/license_plate', String, queue_size=1)
+        self.car_count = rospy.Publisher('/car_count',Int8,queue_size=1)
+        self.drive_enb = rospy.Publisher('/drive_enb',Int8,queue_size=1)
         rospy.Subscriber('/R1/pi_camera/image_raw', Image, self.carDetect,foundCounter,queue_size=1, buff_size=(1000000))
 
         # rospy.spin()
@@ -90,8 +104,19 @@ class plateProcessor:
         
         if(time.time()-self.prevCarTime<2):
             #print("im shleep")
+            # if(time.time()-self.prevCarTime>15):
+            #     self.drive_enb.publish(1) 
+            # if(0.2<=time.time()-self.prevCarTime<=0.5):
+            #     toSave=frame
+            #     imgToSave=im.fromarray(cv2.cvtColor(toSave, cv2.COLOR_BGR2RGB))
+            #     imgToSave.save("/home/fizzer/PlateCapture/"+"lateP"+"_"+str(time.time())+".png")
             return
 
+        if self.carCount==6:
+            #self.drive_enb.publish(0) 
+            while True:
+                i=1
+    
         #blue thresholds for the hsv image, tuned for vehicle blue
         lower_blue = np.array([100, 125, 100])
         upper_blue = np.array([255, 255, 255])
@@ -153,99 +178,40 @@ class plateProcessor:
                 
                 #save plate logic
                 if carFound:
-                    args+=1
+                    #bookkeeping
+                    self.carCount+=1
+                    self.car_count.publish(self.carCount)
+                    print(self.carCount)
                     rgbFrame=cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                    self.prevCarTime=time.time() 
 
+                    #zero in on car
                     zeroedInEdges=self.locateCar(centerList,frame.shape[1]/2)
                     colourZeroedIn=frame[:,zeroedInEdges[0]:zeroedInEdges[1]] # all parts of image included
-                    maskedZeroedIn=result[:,zeroedInEdges[0]:zeroedInEdges[1]] # only blue parts of image included
-                    #cv2.imshow("colourZeroedIn",colourZeroedIn)
-                    foundPlate=self.findPlate(maskedZeroedIn,colourZeroedIn,centerList)
+
+                    plateId=1 if self.carCount==6 else self.carCount+1
+
+                    if plateId==5:
+                        image=im.fromarray(cv2.cvtColor(colourZeroedIn,cv2.COLOR_BGR2RGB))
+                        enhancer = ImageEnhance.Brightness(image)
+                        im_output = enhancer.enhance(0.6)
+                        undarkened=np.copy(colourZeroedIn)
+                        colourZeroedIn=cv2.cvtColor(np.array(im_output),cv2.COLOR_RGB2BGR)
                     
-                    # cv2.imshow("License Plate",foundPlate)
-                    # cv2.waitKey(3)
+                    if plateId!=4:
+                        try:
+                            plate=self.findPlateV2(colourZeroedIn)
+                            # cv2.imshow("plate",plate)
+                            # cv2.moveWindow("plate",0,0)
+                            # print(self.cropAndPredict(plate,plateId))
+                            # toSave=colourZeroedIn if plateId!=5 else undarkened
+                            # imgToSave=im.fromarray(cv2.cvtColor(toSave, cv2.COLOR_BGR2RGB))
+                            # imgToSave.save("/home/fizzer/AutomatedPlateCapture/ScriptCorrection/"+"P"+str(plateId)+"_"+self.plateList[plateId-1]+".png")
+                            # print("saving "+str(plateId))
+                        except:
+                            #self.carCount=6
+                            print("crash :(")
 
-                    # foundPlate=cv2.resize(foundPlate,None, fx=5,fy=5) #scale to give some size to the image to make extracting contours easier
-                    
-                    # character1=self.letterFilter(foundPlate[410:580,20:120])
-                    # character2=self.letterFilter(foundPlate[410:580,120:210])
-                    # character3=self.letterFilter(foundPlate[410:580,240:330])
-                    # character4=self.letterFilter(foundPlate[410:580,350:430])
-
-                    # characterSet=[character1,character2,character3,character4]
-
-                    # platePredictions=[]
-                    # for i in range(len(characterSet)):
-                    #     platePredictions.append(self.predictCharacter(characterSet[i],i>1))
-                    #    #print("predict")
-
-                    # # cv2.imshow("character 1",character1)
-                    # # cv2.imshow("character 2",character2)
-                    # # cv2.imshow("character 3",character3)
-                    # # cv2.imshow("character 4",character4)
-
-                    # prediction=""
-                    # #mergedPlate=np.empty((0,0))
-
-                    # for character in platePredictions:
-                    #     prediction+=character[0]
-                    #     #mergedPlate=np.concatenate(mergedPlate,character[1])
-
-                    # # first2Merge=np.concatenate((platePredictions[0][1], platePredictions[1][1]), axis=1)
-                    # # first3Merge=np.concatenate((first2Merge, platePredictions[2][1]), axis=1)
-                    # # allMerge=np.concatenate((first3Merge, platePredictions[3][1]), axis=1)
-
-                    self.carCount+=1
-                    # plateId=1 if self.carCount==6 else self.carCount+1
-
-                    # print("car "+ str(plateId)+ ", plate"+ prediction)
-                    # self.sendPlate(prediction,plateId)
-
-                    # if self.carCount==6:
-                    #     self.sendPlate(prediction,"-1")
-
-
-                    # first2Merge=np.concatenate((character1, character2), axis=1)
-                    # first3Merge=np.concatenate((first2Merge, character3), axis=1)
-                    # allMerge=np.concatenate((first3Merge, character4), axis=1)
-                    
-                    # cv2.imshow("letter cropped plate",allMerge)
-                    # cv2.waitKey(3)
-
-                    #cv2.imshow("colourZeroedIn", colourZeroedIn)
-                    plateFindV2=self.findPlateV2(colourZeroedIn)
-                    cv2.imshow("plateFindV2", plateFindV2)
-                    character1=self.letterFilter(cv2.resize(plateFindV2[:,:21],None,fx=5,fy=5))
-                    character2=self.letterFilter(cv2.resize(plateFindV2[:,21:40],None,fx=5,fy=5))
-                    character3=self.letterFilter(cv2.resize(plateFindV2[:,48:65],None,fx=5,fy=5))
-                    character4=self.letterFilter(cv2.resize(plateFindV2[:,65:],None,fx=5,fy=5))
-                    # first2Merge=np.concatenate((character1, character2), axis=1)
-                    # first3Merge=np.concatenate((first2Merge, character3), axis=1)
-                    # allMerge=np.concatenate((first3Merge, character4), axis=1)
-
-                    characterSet=[character1,character2,character3,character4]
-                    platePredictions=[]
-                    for i in range(len(characterSet)):
-                        platePredictions.append(self.predictCharacter(characterSet[i],i>1)) 
-
-                    prediction=""
-                    for character in platePredictions:
-                        prediction+=character[0]
-                    print(prediction)
-
-                    first2Merge=np.concatenate((platePredictions[0][1], platePredictions[1][1]), axis=1)
-                    first3Merge=np.concatenate((first2Merge, platePredictions[2][1]), axis=1)
-                    allMerge=np.concatenate((first3Merge, platePredictions[3][1]), axis=1)
-                    cv2.imshow("letter cropped plate2",allMerge)    
-                    self.prevCarTime=time.time()
-                    #print("im shleep")
-                    #cv2.imshow("tight",self.locateCar(frame,centerList))
-                    #self.founCounterPub.publish(self.foundCounter)
-            #After I detect the car, I need to zero in on the license plate
-            #After this find various homographies for stopping positions, train neural net (blue and transform license "paltes to train)
-            #test together
-
-        #cv2.imshow("car?",frame2)
         cv2.waitKey(3)
 
     def locateCar(self,borders,xMid):
@@ -266,7 +232,7 @@ class plateProcessor:
             rightEdge=max([center[0] for center in borders])-bigContourOffset
         return (leftEdge,rightEdge)
     
-    def findPlate(self, colourMasked, img, centers):
+    def findBackOfCar(self, colourMasked, img, centers):
         
         # convert the blue only image to gray scale to find contours
         img_gray = cv2.cvtColor(colourMasked, cv2.COLOR_BGR2GRAY)
@@ -315,34 +281,45 @@ class plateProcessor:
 
         return result
 
-    def predictCharacter(self,character, num=0):
+    def predictCharacter(self, character, num=0):
+        GRAY=[89,89,89]
 
-        #conver the letter to gray scale
-        imgGray=cv2.cvtColor(character,cv2.COLOR_BGR2GRAY)
-        _, img_bin = cv2.threshold(imgGray, 1, 255, cv2.THRESH_BINARY)
-        threeChannelGray=cv2.merge((img_bin,img_bin,img_bin))
-        testModelInput=threeChannelGray
+        character=cv2.cvtColor(character,cv2.COLOR_BGR2RGB)
+        if num:
+            desiredWidth=21
+            desiredHeight=32
+            top=desiredHeight-character.shape[0] if character.shape[0]<desiredHeight else 0
+            right=desiredWidth-character.shape[1] if character.shape[1]<desiredWidth else 0
+            padded=cv2.copyMakeBorder(character,top,0,right,0,cv2.BORDER_CONSTANT,value=GRAY)
+            lower_blue = np.array([81, 80, 0])
+            upper_blue = np.array([255, 255, 255])
+            hsv = cv2.cvtColor(padded, cv2.COLOR_RGB2HSV)
+            mask = cv2.inRange(hsv, lower_blue, upper_blue)
+            onlyBlue = cv2.bitwise_and(padded, padded, mask = mask) 
 
-        contours,_=cv2.findContours(img_bin,cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-        contours=sorted(contours, key=cv2.contourArea,reverse=True)
-        x,y,w,h = cv2.boundingRect(contours[0])
-        toPredict=cv2.resize(testModelInput[y: y+h, x: x+w],(110,140))
-        img_aug = tf.cast(toPredict, tf.float32)
+            grayFiltered = cv2.cvtColor(onlyBlue, cv2.COLOR_RGB2GRAY)
+            contours, _ = cv2.findContours(grayFiltered, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+            sortedContours=sorted(contours,key=cv2.contourArea,reverse=True)
+            cv2.drawContours(onlyBlue, sortedContours[1:],
+                            -1, (0, 0, 0), -1)
+            toPredict=onlyBlue
+        else:
+            desiredWidth=21
+            desiredHeight=32
+            top=desiredHeight-character.shape[0] if character.shape[0]<desiredHeight else 0
+            right=desiredWidth-character.shape[1] if character.shape[1]<desiredWidth else 0
+            toPredict=cv2.copyMakeBorder(character,top,0,right,0,cv2.BORDER_CONSTANT,value=GRAY)
+            print(toPredict.shape)
+
+        # cv2.imshow("To Predict",toPredict)
+        # cv2.waitKey(5)
+        
+        toPredictResize=cv2.resize(toPredict,None,fx=5,fy=5)
+        print(toPredictResize.shape)
+        img_aug = tf.cast(toPredictResize, tf.float32)
         img_aug = np.expand_dims(img_aug, axis=0)
 
         #cv2.imshow("aug img",img_aug)
-
-        # if num:
-        #     y_predict = self.numberConvModel.predict(img_aug)[0] 
-        #     predictedNumber=np.argmax(y_predict)
-        #     return str(predictedNumber)
-        # else:
-
-        # global sess1
-        # global graph1
-
-        # with graph1.as_default():
-        #     set_session(sess1)
 
         if num:
             NN_prediction = self.numberConvModel.predict(img_aug)[0]
@@ -381,46 +358,34 @@ class plateProcessor:
         hsv = cv2.cvtColor(carBack, cv2.COLOR_BGR2HSV)
         mask = cv2.inRange(hsv, lower_blue, upper_blue)
         notMask=cv2.bitwise_not(mask)
-        result = cv2.bitwise_and(carBack, carBack, mask = mask)
+        onlyBlue = cv2.bitwise_and(carBack, carBack, mask = mask)
         notResult = cv2.bitwise_and(carBack, carBack, mask = notMask)
-        cv2.imshow("result", result)
-        cv2.waitKey(3)
+        # cv2.imshow("result", result)
+        # cv2.waitKey(3)
 
-        grayFiltered = cv2.cvtColor(result, cv2.COLOR_RGB2GRAY)
+        grayFiltered = cv2.cvtColor(onlyBlue, cv2.COLOR_RGB2GRAY)
         contours, _ = cv2.findContours    (grayFiltered, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
         sortedContours=sorted(contours, key=cv2.contourArea, reverse=True)
+        
         centerList=[]
         for i in range(2):
             M = cv2.moments(sortedContours[i])
             centerThree = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
             centerList.append(centerThree)
         
-        notPlateFind=self.findPlate(result, notResult, centerList)
-        plateFind=self.findPlate(result, carBack,centerList)
+        notBluePlateFind=self.findBackOfCar(onlyBlue, notResult, centerList)
+        plateFind=self.findBackOfCar(onlyBlue, carBack,centerList)
 
-        cv2.imshow("notPlateFind", notPlateFind)
-        cv2.waitKey(3)
+        # cv2.imshow("notPlateFind", notPlateFind)
+        # cv2.waitKey(3)
         
-        plateOnly=self.plateFilter(notPlateFind, plateFind)
+        plateOnly=self.plateFilter(notBluePlateFind, plateFind)
 
-        if 2<self.carCount<5:     
-            lower_plateGray = np.array([104, 0, 121])
-            upper_plateGray = np.array([153, 66, 187])
-        else:
-            lower_plateGray = np.array([0, 2, 31])
-            upper_plateGray = np.array([174, 68, 95])
-
-
-        hsv = cv2.cvtColor(plateOnly, cv2.COLOR_BGR2HSV)
-        mask = cv2.inRange(hsv, lower_plateGray, upper_plateGray)
-        notMask=cv2.bitwise_not(mask)
-        result = cv2.bitwise_and(plateOnly, plateOnly, mask = mask)
-        
         return plateOnly 
     
     def plateFilter(self, carBack, colourCarBack):
         #carBack=carDetectFrames[0][0][2]
-        if 2<self.carCount<5:     
+        if self.carCount==3:     
             lower_plateGray = np.array([104, 0, 121])
             upper_plateGray = np.array([153, 66, 187])
         else:
@@ -431,8 +396,8 @@ class plateProcessor:
         mask = cv2.inRange(hsv, lower_plateGray, upper_plateGray) 
         result = cv2.bitwise_and(carBack, carBack, mask = mask)
         
-        cv2.imshow("plate filter mask",result)
-        cv2.waitKey(2)
+        # cv2.imshow("plate filter mask",result)
+        # cv2.waitKey(2)
         
         grayFiltered = cv2.cvtColor(result, cv2.COLOR_BGR2GRAY)
         contours, _ = cv2.findContours(grayFiltered, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
@@ -442,6 +407,35 @@ class plateProcessor:
         
 
         return colourCarBack[y: y+h, x: x+w]
+
+    def cropAndPredict(self, plate, plateId):
+        cropList=[[0,21],[22,40],[50,67],[67,85]]
+        plateString=""
+
+        characterList=[]
+
+        for i in range(2):
+            predictReturn=self.predictCharacter(plate[:,cropList[i][0]:cropList[i][1]],False)
+            plateString+=predictReturn[0]
+            characterList.append(predictReturn[1])
+
+        for i in range(2):
+            predictReturn=self.predictCharacter(plate[:,cropList[i+2][0]:cropList[i+2][1]],True)
+            plateString+=predictReturn[0]
+            characterList.append(predictReturn[1])
+
+        predictionCrop=np.concatenate([cv2.copyMakeBorder(characterList[i],0,0,0,5,borderType=cv2.BORDER_CONSTANT,value=(255,255,255)
+        ) for i in range(4)],axis=1)
+        # cv2.imshow("predictionCrop",cv2.cvtColor(predictionCrop,cv2.COLOR_RGB2BGR))
+        # cv2.moveWindow("predictionCrop",x=0,y=200)
+        # cv2.waitKey(5)
+
+        # self.sendPlate(plateString,plateId)
+
+        return plateString
+
+
+
 
 def main(args):
     rospy.init_node("license_detector",anonymous=True)
