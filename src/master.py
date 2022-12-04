@@ -10,8 +10,16 @@ class concertmaster:
     def __init__(self):
         self.drive_enb = rospy.Publisher('/drive_enb',Int8,queue_size=1)
         self.license_pub = rospy.Publisher('/license_plate', String, queue_size=1)
+        self.plate_count_sub = rospy.Subscriber("/car_count",Int8,self.car_count_printer)
         rospy.init_node('concertmaster', anonymous=True)
         self.state = "starting"
+
+    def car_count_printer(self,msg):
+        if msg.data == 4:
+            self.drive_enb.publish(1)
+        elif msg.data == 6:
+            # self.state = "trans_inner"
+            return
     
     def click_timer(self,action):
         msg = f"TeamRed,multi21,{action},XXXX"
@@ -29,17 +37,17 @@ def main(args):
                 master.click_timer(0)
                 master.state = "start_drive"
 
-            if master.state == "start_drive":
+            elif master.state == "start_drive":
                 print("Starting Drive")
                 master.drive_enb.publish(10) # initial orientation
                 time.sleep(5)
                 master.drive_enb.publish(1) # start driving
                 master.state = "in_drive"
             
-            if master.state == "in_drive":
+            elif master.state == "in_drive":
                 continue
 
-            if master.state == "end":
+            elif master.state == "end":
                 print("Ending Drive")
                 master.drive_enb.publish(0)
                 master.click_timer(-1)

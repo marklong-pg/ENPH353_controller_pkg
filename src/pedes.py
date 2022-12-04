@@ -26,30 +26,36 @@ class pedes_kicker:
         # Variables and flags
         self.at_crosswalk = False
         self.pedes_init_side = -1
+        self.enable = 1
+
         self.LEFT = 0
         self.RIGHT = 1
         self.LEFT_LIM = 400
         self.RIGHT_LIM = 800
-        # self.pedes_avoided = False
+        self.pedes_avoided = 0
         self.low_red = np.array([0, 100, 20])
         self.high_red = np.array([10, 255, 255])
 
         self.low_blue = np.array([100,50,20])
         self.high_blue = np.array([110,140,120]) 
 
-    def car_count_printer(self,data):
-        print(data)           
+    def car_count_printer(self,msg):
+        if msg.data == 5:
+            self.enable = 1
+            print("Pedes: ON")
+        
 
     def pedes_handler(self,data):
-        try:
-            cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
-        except CvBridgeError as e:
-            print(e)
+        if self.enable:
+            try:
+                cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
+            except CvBridgeError as e:
+                print(e)
 
-        if not self.at_crosswalk:
-            self.check_red(cv_image)
-        else:
-            self.avoid_pedes(cv_image)
+            if not self.at_crosswalk:
+                self.check_red(cv_image)
+            else:
+                self.avoid_pedes(cv_image)
     
     def check_red(self, cv_image):
         hsv = cv2.cvtColor(cv_image,cv2.COLOR_BGR2HSV)
@@ -94,14 +100,29 @@ class pedes_kicker:
         
         if  (self.pedes_init_side == self.LEFT and x_pedes > self.RIGHT_LIM) or \
             (self.pedes_init_side == self.RIGHT and x_pedes < self.LEFT_LIM):
-            self.drive_pub.publish(1)
-            time.sleep(10)
-            self.reset()
 
-    def reset(self):
+            if self.pedes_avoided == 0:
+                self.off_and_reset()
+                self.drive_pub.publish(1)
+                time.sleep(1.5)
+                self.drive_pub.publish(2)
+                self.pedes_avoided += 1
+            elif self.pedes_avoided == 1:
+                # self.off_and_reset()
+                self.drive_pub.publish(1)
+
+                # testing before inner loop entrance
+                time.sleep(10)
+                self.at_crosswalk = False
+                self.pedes_init_side = -1
+                self.pedes_avoided = 0
+
+
+    def off_and_reset(self):
+        self.enable = 0
         self.at_crosswalk = False
         self.pedes_init_side = -1
-        print('Pedes tracker reset successfully!')
+        print('Pedes: OFF')
 
 def main(args):
     # Initiate node
