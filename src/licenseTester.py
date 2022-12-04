@@ -72,8 +72,8 @@ class plateProcessor:
 
         print(self.plateList)
 
-        # self.letterConvModel= tf.keras.models.load_model('/home/fizzer/ros_ws/src/controller_pkg/src/LetterModelSimData/')
-        # self.numberConvModel= tf.keras.models.load_model('/home/fizzer/ros_ws/src/controller_pkg/src/NumModelSimData/')
+        self.letterConvModel= tf.keras.models.load_model('/home/fizzer/ros_ws/src/controller_pkg/src/BlueOnlyLetterModel/')
+        self.numberConvModel= tf.keras.models.load_model('/home/fizzer/ros_ws/src/controller_pkg/src/BlueOnlyNumModelSimData/')
 
         self.plate_pub=rospy.Publisher('/license_plate', String, queue_size=1)
         self.car_count = rospy.Publisher('/car_count',Int8,queue_size=1)
@@ -113,7 +113,7 @@ class plateProcessor:
             return
 
         if self.carCount==6:
-            #self.drive_enb.publish(0) 
+            self.drive_enb.publish(0) 
             while True:
                 i=1
     
@@ -199,18 +199,18 @@ class plateProcessor:
                         colourZeroedIn=cv2.cvtColor(np.array(im_output),cv2.COLOR_RGB2BGR)
                     
                     if plateId!=4:
-                        try:
-                            plate=self.findPlateV2(colourZeroedIn)
-                            # cv2.imshow("plate",plate)
-                            # cv2.moveWindow("plate",0,0)
-                            # print(self.cropAndPredict(plate,plateId))
+                        # try:
+                        plate=self.findPlateV2(colourZeroedIn)
+                        cv2.imshow("plate",plate)
+                        cv2.moveWindow("plate",0,0)
+                        print(self.cropAndPredict(plate,plateId))
                             # toSave=colourZeroedIn if plateId!=5 else undarkened
                             # imgToSave=im.fromarray(cv2.cvtColor(toSave, cv2.COLOR_BGR2RGB))
                             # imgToSave.save("/home/fizzer/AutomatedPlateCapture/ScriptCorrection/"+"P"+str(plateId)+"_"+self.plateList[plateId-1]+".png")
                             # print("saving "+str(plateId))
-                        except:
-                            #self.carCount=6
-                            print("crash :(")
+                        # except:
+                        #     self.carCount=6
+                        #     print("crash :(")
 
         cv2.waitKey(3)
 
@@ -287,7 +287,7 @@ class plateProcessor:
         character=cv2.cvtColor(character,cv2.COLOR_BGR2RGB)
         if num:
             desiredWidth=21
-            desiredHeight=32
+            desiredHeight=34
             top=desiredHeight-character.shape[0] if character.shape[0]<desiredHeight else 0
             right=desiredWidth-character.shape[1] if character.shape[1]<desiredWidth else 0
             padded=cv2.copyMakeBorder(character,top,0,right,0,cv2.BORDER_CONSTANT,value=GRAY)
@@ -309,7 +309,19 @@ class plateProcessor:
             top=desiredHeight-character.shape[0] if character.shape[0]<desiredHeight else 0
             right=desiredWidth-character.shape[1] if character.shape[1]<desiredWidth else 0
             toPredict=cv2.copyMakeBorder(character,top,0,right,0,cv2.BORDER_CONSTANT,value=GRAY)
-            print(toPredict.shape)
+            padded=cv2.copyMakeBorder(character,top,0,right,0,cv2.BORDER_CONSTANT,value=GRAY)
+            lower_blue = np.array([81, 80, 0])
+            upper_blue = np.array([255, 255, 255])
+            hsv = cv2.cvtColor(padded, cv2.COLOR_RGB2HSV)
+            mask = cv2.inRange(hsv, lower_blue, upper_blue)
+            onlyBlue = cv2.bitwise_and(padded, padded, mask = mask) 
+
+            grayFiltered = cv2.cvtColor(onlyBlue, cv2.COLOR_RGB2GRAY)
+            contours, _ = cv2.findContours(grayFiltered, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+            sortedContours=sorted(contours,key=cv2.contourArea,reverse=True)
+            cv2.drawContours(onlyBlue, sortedContours[1:],
+                            -1, (0, 0, 0), -1)
+            toPredict=onlyBlue
 
         # cv2.imshow("To Predict",toPredict)
         # cv2.waitKey(5)
@@ -318,8 +330,6 @@ class plateProcessor:
         print(toPredictResize.shape)
         img_aug = tf.cast(toPredictResize, tf.float32)
         img_aug = np.expand_dims(img_aug, axis=0)
-
-        #cv2.imshow("aug img",img_aug)
 
         if num:
             NN_prediction = self.numberConvModel.predict(img_aug)[0]
@@ -425,12 +435,16 @@ class plateProcessor:
             characterList.append(predictReturn[1])
 
         predictionCrop=np.concatenate([cv2.copyMakeBorder(characterList[i],0,0,0,5,borderType=cv2.BORDER_CONSTANT,value=(255,255,255)
-        ) for i in range(4)],axis=1)
-        # cv2.imshow("predictionCrop",cv2.cvtColor(predictionCrop,cv2.COLOR_RGB2BGR))
-        # cv2.moveWindow("predictionCrop",x=0,y=200)
-        # cv2.waitKey(5)
+        ) for i in range(2)],axis=1)
+        cv2.imshow("predictionCrop",cv2.cvtColor(predictionCrop,cv2.COLOR_RGB2BGR))
+        cv2.moveWindow("predictionCrop",x=0,y=200)
+        predictionCrop=np.concatenate([cv2.copyMakeBorder(characterList[i],0,0,0,5,borderType=cv2.BORDER_CONSTANT,value=(255,255,255)
+        ) for i in range(2,4)],axis=1)
+        cv2.imshow("predictionCrop1",cv2.cvtColor(predictionCrop,cv2.COLOR_RGB2BGR))
+        cv2.moveWindow("predictionCrop1",x=0,y=400)
+        cv2.waitKey(5)
 
-        # self.sendPlate(plateString,plateId)
+        self.sendPlate(plateString,plateId)
 
         return plateString
 
