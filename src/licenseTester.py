@@ -63,6 +63,14 @@ class plateProcessor:
         self.carCount=0
         self.saveTag=False
 
+        self.cropDict={}
+        self.cropDict[1]=[[0,21],[22,40],[50,67],[70,85]]
+        self.cropDict[2]=[[0,21],[22,40],[50,67],[68,85]]
+        self.cropDict[3]=[[0,21],[22,40],[52,69],[69,86]]
+        self.cropDict[4]=[[2,20],[22,36],[50,66],[67,85]]
+        self.cropDict[5]=[[0,21],[22,40],[50,68],[70,87]]
+        self.cropDict[6]=[[0,21],[22,40],[50,67],[70,85]]
+
         plateFile=open("/home/fizzer/ros_ws/src/2022_competition/enph353/enph353_gazebo/scripts/plates.csv")
         plateReader=csv.reader(plateFile)
 
@@ -72,8 +80,8 @@ class plateProcessor:
 
         print(self.plateList)
 
-        self.letterConvModel= tf.keras.models.load_model('/home/fizzer/ros_ws/src/controller_pkg/src/BlueOnlyLetterModel/')
-        self.numberConvModel= tf.keras.models.load_model('/home/fizzer/ros_ws/src/controller_pkg/src/BlueOnlyNumModelSimData/')
+        self.letterConvModel= tf.keras.models.load_model('/home/fizzer/ros_ws/src/controller_pkg/src/BlueOnlyLetterModel3/')
+        self.numberConvModel= tf.keras.models.load_model('/home/fizzer/ros_ws/src/controller_pkg/src/BlueOnlyNumModelSimData2/')
 
         self.plate_pub=rospy.Publisher('/license_plate', String, queue_size=1)
         self.car_count = rospy.Publisher('/car_count',Int8,queue_size=1)
@@ -197,20 +205,33 @@ class plateProcessor:
                         im_output = enhancer.enhance(0.6)
                         undarkened=np.copy(colourZeroedIn)
                         colourZeroedIn=cv2.cvtColor(np.array(im_output),cv2.COLOR_RGB2BGR)
-                    
-                    if plateId!=4:
-                        # try:
-                        plate=self.findPlateV2(colourZeroedIn)
+                    if plateId==4:
+                        self.undarkened1=np.copy(colourZeroedIn)
+
+                    try:
+                        if plateId==4:
+                            plate=self.findPlateV2(colourZeroedIn)
+                            unwarped=self.warpPlateFour(plate)
+                            image=im.fromarray(unwarped)
+                            enhancer = ImageEnhance.Brightness(image)
+                            plate = np.array(enhancer.enhance(0.6))
+                        else :
+                            plate=self.findPlateV2(colourZeroedIn)
+
                         cv2.imshow("plate",plate)
                         cv2.moveWindow("plate",0,0)
                         print(self.cropAndPredict(plate,plateId))
-                            # toSave=colourZeroedIn if plateId!=5 else undarkened
-                            # imgToSave=im.fromarray(cv2.cvtColor(toSave, cv2.COLOR_BGR2RGB))
-                            # imgToSave.save("/home/fizzer/AutomatedPlateCapture/ScriptCorrection/"+"P"+str(plateId)+"_"+self.plateList[plateId-1]+".png")
-                            # print("saving "+str(plateId))
-                        # except:
-                        #     self.carCount=6
-                        #     print("crash :(")
+                        toSave=colourZeroedIn if plateId!=5 else undarkened
+                        imgToSave=im.fromarray(cv2.cvtColor(toSave, cv2.COLOR_BGR2RGB))
+                        imgToSave.save("/home/fizzer/AutomatedPlateCapture/FinalDrive/"+"P"+str(plateId)+"_"+self.plateList[plateId-1]+".png")
+                        print("saving "+str(plateId))
+                        if plateId==5:
+                            imgToSave=im.fromarray(cv2.cvtColor(self.undarkened1, cv2.COLOR_BGR2RGB))
+                            imgToSave.save("/home/fizzer/AutomatedPlateCapture/FinalDrive/"+"P"+str(plateId-1)+"_"+self.plateList[plateId-2]+".png")
+
+                    except:
+                        self.carCount=6
+                        print("crash :(")
 
         cv2.waitKey(3)
 
@@ -396,8 +417,8 @@ class plateProcessor:
     def plateFilter(self, carBack, colourCarBack):
         #carBack=carDetectFrames[0][0][2]
         if self.carCount==3:     
-            lower_plateGray = np.array([104, 0, 121])
             upper_plateGray = np.array([153, 66, 187])
+            lower_plateGray = np.array([104, 0, 121])
         else:
             lower_plateGray = np.array([0, 2, 31])
             upper_plateGray = np.array([174, 20, 115])
@@ -419,7 +440,7 @@ class plateProcessor:
         return colourCarBack[y: y+h, x: x+w]
 
     def cropAndPredict(self, plate, plateId):
-        cropList=[[0,21],[22,40],[50,67],[67,85]]
+        cropList=self.cropDict[plateId]
         plateString=""
 
         characterList=[]
@@ -447,6 +468,22 @@ class plateProcessor:
         self.sendPlate(plateString,plateId)
 
         return plateString
+
+    def warpPlateFour(self, plate):
+        pt_A = [0, 0]
+        pt_B = [2, plate.shape[0]-2]
+        pt_C = [plate.shape[1], 5]
+        pt_D = [plate.shape[1], plate.shape[0]]
+
+        inputPts =np.float32([pt_A, pt_B, pt_C, pt_D])
+        outputPts = np.float32([[0, 0],
+                                [0,20],
+                                [87, 0],
+                                [87, 20]])
+
+        M = cv2.getPerspectiveTransform(inputPts,outputPts)
+        out = cv2.warpPerspective(plate,M,(87, 22),flags=cv2.INTER_LINEAR)
+        return out
 
 
 

@@ -94,9 +94,9 @@ class lane_keeper:
         else:
             x = self.previous_x
 
-        cv2.imshow("lane_keep,",cv2.circle(cv2.cvtColor(frame_bin, cv2.COLOR_GRAY2BGR),(x,20),20,(0,0,255),-1))
-        cv2.waitKey(3)
-        self.move.linear.x = 0.3 * ((1-0.2)*(x-440)/(1035-440) + 0.2)
+        # cv2.imshow("lane_keep,",cv2.circle(cv2.cvtColor(frame_bin, cv2.COLOR_GRAY2BGR),(x,20),20,(0,0,255),-1))
+        # cv2.waitKey(3)
+        self.move.linear.x = 0.2 * ((1-0.2)*(x-440)/(1035-440) + 0.2)
         self.move.angular.z = self.PID_K*(x-1035)/(440 - 1035)
         self.drive_pub.publish(self.move)
 
@@ -120,8 +120,8 @@ class lane_keeper:
                 self.previous_x = x
                 break
 
-        cv2.imshow("lane_keep,",cv2.circle(cv2.cvtColor(frame_bin, cv2.COLOR_GRAY2BGR),(x,20),20,(0,0,255),-1))
-        cv2.waitKey(3)
+        # cv2.imshow("lane_keep,",cv2.circle(cv2.cvtColor(frame_bin, cv2.COLOR_GRAY2BGR),(x,20),20,(0,0,255),-1))
+        # cv2.waitKey(3)
         self.move.linear.x = 0.2 * ((1-0.1)*(x-440)/(1035-440) + 0.1)
         self.move.angular.z = self.PID_K*(x-1035)/(440 - 1035)
         self.drive_pub.publish(self.move)
