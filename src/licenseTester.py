@@ -62,6 +62,9 @@ class plateProcessor:
         self.imList=[]
         self.carCount=0
         self.saveTag=False
+        self.publishTag=False #save results to csv?
+        self.predictDict={}
+        self.actualPlateList=[]
 
         self.cropDict={}
         self.cropDict[1]=[[0,21],[22,40],[50,67],[70,85]]
@@ -70,6 +73,8 @@ class plateProcessor:
         self.cropDict[4]=[[2,20],[22,36],[50,66],[67,85]]
         self.cropDict[5]=[[0,21],[22,40],[50,68],[70,87]]
         self.cropDict[6]=[[0,21],[22,40],[50,67],[70,85]]
+        self.cropDict[7]=[[0,21],[22,40],[50,67],[70,85]]
+        self.cropDict[8]=[[0,21],[22,40],[50,67],[70,85]]
 
         plateFile=open("/home/fizzer/ros_ws/src/2022_competition/enph353/enph353_gazebo/scripts/plates.csv")
         plateReader=csv.reader(plateFile)
@@ -77,6 +82,7 @@ class plateProcessor:
         self.plateList=[]
         for row in plateReader:
             self.plateList.append(row[0]+"_"+str(time.time()%1000))
+            self.actualPlateList.append(row[0])
 
         print(self.plateList)
 
@@ -106,6 +112,7 @@ class plateProcessor:
                 imgToSave.save("simFrames/frame"+str(i)+".png")
                 print("saving"+str(i))
 
+    
     def carDetect(self, data, args):
         br = CvBridge()
         frame = br.imgmsg_to_cv2(data,desired_encoding='bgr8')
@@ -121,9 +128,10 @@ class plateProcessor:
             return
 
         if self.carCount==6:
-            self.drive_enb.publish(0) 
-            while True:
-                i=1
+            #self.drive_enb.publish(0)
+            if not self.publishTag:
+                self.publishResults()
+                self.publishTag=True
     
         #blue thresholds for the hsv image, tuned for vehicle blue
         lower_blue = np.array([100, 125, 100])
@@ -220,20 +228,30 @@ class plateProcessor:
 
                         cv2.imshow("plate",plate)
                         cv2.moveWindow("plate",0,0)
-                        print(self.cropAndPredict(plate,plateId))
-                        toSave=colourZeroedIn if plateId!=5 else undarkened
-                        imgToSave=im.fromarray(cv2.cvtColor(toSave, cv2.COLOR_BGR2RGB))
-                        imgToSave.save("/home/fizzer/AutomatedPlateCapture/FinalDrive/"+"P"+str(plateId)+"_"+self.plateList[plateId-1]+".png")
+                        self.predictDict[plateId]=self.cropAndPredict(plate,plateId)
+                        # toSave=colourZeroedIn if plateId!=5 else undarkened
+                        # imgToSave=im.fromarray(cv2.cvtColor(toSave, cv2.COLOR_BGR2RGB))
+                        # imgToSave.save("/home/fizzer/AutomatedPlateCapture/FinalDrive/"+"P"+str(plateId)+"_"+self.plateList[plateId-1]+".png")
                         print("saving "+str(plateId))
-                        if plateId==5:
-                            imgToSave=im.fromarray(cv2.cvtColor(self.undarkened1, cv2.COLOR_BGR2RGB))
-                            imgToSave.save("/home/fizzer/AutomatedPlateCapture/FinalDrive/"+"P"+str(plateId-1)+"_"+self.plateList[plateId-2]+".png")
+                        # if plateId==5:
+                        #     imgToSave=im.fromarray(cv2.cvtColor(self.undarkened1, cv2.COLOR_BGR2RGB))
+                        #     imgToSave.save("/home/fizzer/AutomatedPlateCapture/FinalDrive/"+"P"+str(plateId-1)+"_"+self.plateList[plateId-2]+".png")
 
                     except:
                         self.carCount=6
                         print("crash :(")
 
         cv2.waitKey(3)
+
+    def publishResults(self):
+        with open('/home/fizzer/ros_ws/src/controller_pkg/src/results.csv','a') as fObject:
+            writerObject=csv.writer(fObject)
+            for i in range(6):
+                if self.predictDict.__contains__(i+1):
+                    writerObject.writerow(["P"+str(i+1),self.predictDict[i+1],self.actualPlateList[i]])
+            fObject.close()
+        print("done saving to csv")
+            
 
     def locateCar(self,borders,xMid):
         avgY=int(sum([center[1] for center in borders])/2)
