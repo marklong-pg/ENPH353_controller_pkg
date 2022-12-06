@@ -67,14 +67,15 @@ class plateProcessor:
         self.actualPlateList=[]
 
         self.cropDict={}
+        self.cropDict[0]=[[0,21],[22,40],[50,67],[70,85]]
         self.cropDict[1]=[[0,21],[22,40],[50,67],[70,85]]
         self.cropDict[2]=[[0,21],[22,40],[50,67],[68,85]]
         self.cropDict[3]=[[0,21],[22,40],[52,69],[69,86]]
         self.cropDict[4]=[[2,20],[22,36],[50,66],[67,85]]
         self.cropDict[5]=[[0,21],[22,40],[50,68],[70,87]]
         self.cropDict[6]=[[0,21],[22,40],[50,67],[70,85]]
-        self.cropDict[7]=[[0,21],[22,40],[50,67],[70,85]]
-        self.cropDict[8]=[[0,21],[22,40],[50,67],[70,85]]
+        self.cropDict[7]=[[0,21],[22,40],[50,67],[68,85]]
+        self.cropDict[8]=[[0,21],[22,40],[50,67],[68,85]]
 
         plateFile=open("/home/fizzer/ros_ws/src/2022_competition/enph353/enph353_gazebo/scripts/plates.csv")
         plateReader=csv.reader(plateFile)
@@ -164,7 +165,7 @@ class plateProcessor:
             
             #If both wedges are big enough for us to be close to the vehicle
             if(cv2.contourArea(sortedContours[0])>15000 and cv2.contourArea(sortedContours[1])>2000):
-                print("STOP: CAR DETECTED")
+                # print("STOP: CAR DETECTED")
                 #mage=im.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
                 #mage.save("carDetected.png")
 
@@ -244,13 +245,14 @@ class plateProcessor:
         cv2.waitKey(3)
 
     def publishResults(self):
-        with open('/home/fizzer/ros_ws/src/controller_pkg/src/results.csv','a') as fObject:
-            writerObject=csv.writer(fObject)
-            for i in range(6):
-                if self.predictDict.__contains__(i+1):
-                    writerObject.writerow(["P"+str(i+1),self.predictDict[i+1],self.actualPlateList[i]])
-            fObject.close()
-        print("done saving to csv")
+        # with open('/home/fizzer/ros_ws/src/controller_pkg/src/results.csv','a') as fObject:
+        #     writerObject=csv.writer(fObject)
+        #     for i in range(6):
+        #         if self.predictDict.__contains__(i+1):
+        #             writerObject.writerow(["P"+str(i+1),self.predictDict[i+1],self.actualPlateList[i]])
+        #     fObject.close()
+        # print("done saving to csv")
+        return
             
 
     def locateCar(self,borders,xMid):
@@ -458,7 +460,7 @@ class plateProcessor:
         return colourCarBack[y: y+h, x: x+w]
 
     def cropAndPredict(self, plate, plateId):
-        cropList=self.cropDict[plateId]
+        cropList=self.cropDict[plateId % 9]
         plateString=""
 
         characterList=[]
