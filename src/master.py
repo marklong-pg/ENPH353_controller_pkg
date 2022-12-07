@@ -12,6 +12,8 @@ class concertmaster:
         self.license_pub = rospy.Publisher('/license_plate', String, queue_size=1)
         self.plate_count_sub = rospy.Subscriber("/car_count",Int8,self.car_count_printer)
         self.inner_trig_sub = rospy.Subscriber('/inner_trigger',Int8,self.inner_loop_trigger)
+        self.plate_pub = rospy.Publisher('/plate_inner_trigger',Int8,queue_size=1)
+
         rospy.init_node('concertmaster', anonymous=True)
         self.state = "starting"
 
@@ -82,6 +84,7 @@ def main(args):
                 master.drive_enb.publish(3)
                 time.sleep(1)
                 master.drive_enb.publish(6)
+                master.plate_pub.publish(0)
                 print("Inner loop drive activated")
                 master.state = "idle"
 

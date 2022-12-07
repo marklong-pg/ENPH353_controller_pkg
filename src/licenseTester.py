@@ -76,6 +76,7 @@ class plateProcessor:
         self.cropDict[6]=[[0,21],[22,40],[50,67],[70,85]]
         self.cropDict[7]=[[0,19],[20,35],[47,61],[61,77]]
         self.cropDict[8]=[[0,21],[22,40],[50,67],[68,85]]
+        self.innerDetect=False
 
         plateFile=open("/home/fizzer/ros_ws/src/2022_competition/enph353/enph353_gazebo/scripts/plates.csv")
         plateReader=csv.reader(plateFile)
@@ -95,11 +96,16 @@ class plateProcessor:
         self.plate_pub=rospy.Publisher('/license_plate', String, queue_size=1)
         self.car_count = rospy.Publisher('/car_count',Int8,queue_size=1)
         self.drive_enb = rospy.Publisher('/drive_enb',Int8,queue_size=1)
+        rospy.Subscriber('/plate_inner_trigger', Int8, self.readyToDetect, queue_size=1, buff_size=(1000000))
         rospy.Subscriber('/R1/pi_camera/image_raw', Image, self.carDetect,foundCounter,queue_size=1, buff_size=(1000000))
 
         # rospy.spin()
         # cv2.destroyAllWindows()
 
+    def readyToDetect(self,msg):
+        if not msg.data:
+            print("Inner Plate Detect Triggered!")
+            self.innerDetect=True
     def captureSimFeed(self,data,args):
         br = CvBridge()
         frame = br.imgmsg_to_cv2(data,desired_encoding='bgr8')
@@ -123,7 +129,7 @@ class plateProcessor:
         if(time.time()-self.prevCarTime<2):
             return
 
-        if(time.time()-self.prevCarTime<10 and self.carCount==6):
+        if(self.carCount==6 and not self.innerDetect):
             #print("car count return")
             return
 
