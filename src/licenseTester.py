@@ -74,7 +74,7 @@ class plateProcessor:
         self.cropDict[4]=[[2,20],[22,36],[50,66],[67,85]]
         self.cropDict[5]=[[0,21],[22,40],[50,68],[70,87]]
         self.cropDict[6]=[[0,21],[22,40],[50,67],[70,85]]
-        self.cropDict[7]=[[0,21],[22,40],[50,67],[68,85]]
+        self.cropDict[7]=[[0,19],[20,35],[47,61],[61,77]]
         self.cropDict[8]=[[0,21],[22,40],[50,67],[68,85]]
 
         plateFile=open("/home/fizzer/ros_ws/src/2022_competition/enph353/enph353_gazebo/scripts/plates.csv")
@@ -123,8 +123,12 @@ class plateProcessor:
         if(time.time()-self.prevCarTime<2):
             return
 
+        if(time.time()-self.prevCarTime<10 and self.carCount==6):
+            #print("car count return")
+            return
+
         if self.carCount==6:
-            self.drive_enb.publish(0)
+            # self.drive_enb.publish(0)
             if not self.publishTag:
                 self.publishResults()
                 self.publishTag=True
@@ -200,7 +204,12 @@ class plateProcessor:
                     zeroedInEdges=self.locateCar(centerList,frame.shape[1]/2)
                     colourZeroedIn=frame[:,zeroedInEdges[0]:zeroedInEdges[1]] # all parts of image included
 
-                    plateId=1 if self.carCount==6 else self.carCount+1
+                    if self.carCount==6:
+                        plateId=1
+                    elif self.carCount>6:
+                        plateId=self.carCount
+                    else:
+                        plateId=self.carCount+1
 
                     if plateId==5:
                         image=im.fromarray(cv2.cvtColor(colourZeroedIn,cv2.COLOR_BGR2RGB))
@@ -218,11 +227,19 @@ class plateProcessor:
                             image=im.fromarray(unwarped)
                             enhancer = ImageEnhance.Brightness(image)
                             plate = np.array(enhancer.enhance(0.6))
+                        elif plateId==7:
+                            plate=self.warpPlateSeven(plate)
                         else :
                             plate=self.findPlateV2(colourZeroedIn)
 
-                        # cv2.imshow("plate",plate)
-                        # cv2.moveWindow("plate",0,0)
+                        if plateId==7 or plateId==8:
+                            #toSave=colourZeroedIn if plateId!=5 else undarkened
+                            imgToSave=im.fromarray(cv2.cvtColor(plate, cv2.COLOR_BGR2RGB))
+                            imgToSave.save("/home/fizzer/"+"P"+str(plateId)+"_"+self.plateList[plateId-1]+".png")
+                            print("saving "+str(plateId)+" to /home/fizzer/"+"P"+str(plateId)+"_"+self.plateList[plateId-1]+".png")  
+
+                        cv2.imshow("plate",plate)
+                        cv2.moveWindow("plate",0,0)
                         self.predictDict[plateId]=self.cropAndPredict(plate,plateId)
                         # toSave=colourZeroedIn if plateId!=5 else undarkened
                         # imgToSave=im.fromarray(cv2.cvtColor(toSave, cv2.COLOR_BGR2RGB))
@@ -236,7 +253,7 @@ class plateProcessor:
                         #self.carCount=6
                         print("crash :(")
 
-        # cv2.imshow("ScriptView",frame2)
+        cv2.imshow("ScriptView",frame2)
         cv2.waitKey(3)
 
     def publishResults(self):
@@ -494,6 +511,22 @@ class plateProcessor:
         pt_B = [2, plate.shape[0]-2]
         pt_C = [plate.shape[1], 5]
         pt_D = [plate.shape[1], plate.shape[0]]
+
+        inputPts =np.float32([pt_A, pt_B, pt_C, pt_D])
+        outputPts = np.float32([[0, 0],
+                                [0,20],
+                                [87, 0],
+                                [87, 20]])
+
+        M = cv2.getPerspectiveTransform(inputPts,outputPts)
+        out = cv2.warpPerspective(plate,M,(87, 22),flags=cv2.INTER_LINEAR)
+        return out
+
+    def warpPlateSeven(self,plate):
+        pt_A = [0, 6]
+        pt_B = [0, plate.shape[0]-2]
+        pt_C = [plate.shape[1], 2]
+        pt_D = [plate.shape[1], plate.shape[0]-10]
 
         inputPts =np.float32([pt_A, pt_B, pt_C, pt_D])
         outputPts = np.float32([[0, 0],
