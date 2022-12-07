@@ -13,7 +13,7 @@ class concertmaster:
         self.plate_count_sub = rospy.Subscriber("/car_count",Int8,self.car_count_printer)
         self.inner_trig_sub = rospy.Subscriber('/inner_trigger',Int8,self.inner_loop_trigger)
         rospy.init_node('concertmaster', anonymous=True)
-        self.state = "idle"
+        self.state = "starting"
 
     def car_count_printer(self,msg):
         if msg.data == 4:
@@ -23,10 +23,14 @@ class concertmaster:
             return
 
     def inner_loop_trigger(self,msg):
-        # self.drive_enb.publish(3)
-        time.sleep(3)
-        print("Master Wakes")
-        self.drive_enb.publish(4)
+        print("Master changes to right")
+        self.drive_enb.publish(7)
+        time.sleep(3.8)
+        print("Master changes to left")
+        self.drive_enb.publish(3)
+        time.sleep(5)
+        self.drive_enb.publish(0)
+        print('END')
     
     def click_timer(self,action):
         msg = f"TeamRed,multi21,{action},XXXX"

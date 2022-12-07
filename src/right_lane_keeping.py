@@ -20,9 +20,10 @@ MODE_DICT = {
     1 : "OUTER_PLAIN",
     2 : "HILL",
     3 : "TRANSITION_LEFT",
-    4 : "INNER_LEFT",
-    # 5 : "INNER_RIGHT",
-    6 : "INNER_DRIVE",
+    4 : "TARZAN_LEFT",
+    6 : "TARZAN_RIGHT",
+    7 : "INNER_RIGHT",
+    # 8 : "INNER_LEFT",
     10: "INITIAL_START"
 }
 
@@ -74,11 +75,11 @@ class lane_keeper:
             self.inner_left(cv_image)
         # elif self.mode == "INNER_LEFT":
         #     self.inner_left(cv_image, left_limit=True)
-        # elif self.mode == "INNER_RIGHT":
-        #     self.inner_right(cv_image)
-        elif self.mode == "INNER_DRIVE":
+        elif self.mode == "INNER_RIGHT":
+            self.inner_right(cv_image)
+        elif self.mode == "TARZAN_RIGHT":
             self.inner_drive_1(cv_image)
-        elif self.mode == "INNER_LEFT":
+        elif self.mode == "TARZAN_LEFT":
             self.inner_drive_2(cv_image)
             # self.inner_left(cv_image)
         elif self.mode == "HILL":
@@ -141,23 +142,13 @@ class lane_keeper:
             x = int(round(0.5*sum(trans)))
             self.previous_x = x
         else:
-            # if self.mode == "INNER_RIGHT":
-            #     self.mode = "INNER_LEFT"
-            #     print("Changing to LEFT")
-            #     return
-            # x = self.previous_x
-            # print(f"X-invalid: {x}")
-            x = 1035
-            # x = 1050
-            # self.master_pub.publish(1)
-            # self.mode = "TRANSITION_LEFT"
+            x = self.previous_x
             return
 
         cv2.imshow("lane_keep,",cv2.circle(cv2.cvtColor(frame_bin, cv2.COLOR_GRAY2BGR),(x,20),20,(0,0,255),-1))
         cv2.waitKey(3)
-        # self.move.linear.x = 0.2 * ((1-0.2)*(x-440)/(1035-440) + 0.2)
         target = 1035
-        self.move.linear.x = 0.3 #* ((1-0.2)*(1280-x)/(1280-target)+0.2)
+        self.move.linear.x = 0.3 
         self.move.angular.z = self.PID_K*(x-target)/(440 - target)
         self.drive_pub.publish(self.move)
 
@@ -179,15 +170,6 @@ class lane_keeper:
         if len(trans) == 2 and trans[0] < 900 and trans[1] < 900:
             x = int(round(0.5*sum(trans)))
             if left_limit and x < 130:
-                # print(f"x = {x} ==> go right")
-                # self.move.linear.x = 0
-                # self.move.angular.z = 0
-                # self.drive_pub.publish(self.move)
-                # time.sleep(5)
-                # self.mode = "INNER_RIGHT"
-                # print("Changing to RIGHT")
-                # self.mode = "STOP"
-                # return
                 x = self.previous_x
             else:
                 self.previous_x = x
@@ -290,8 +272,8 @@ class lane_keeper:
             if self.prev_left_stat == False and left_stat == True:
                 self.left_miss_count = 0
                 # self.mode = "TRANSITION_LEFT"
-                self.mode = "STOP"
-                # self.mode = "INNER_LEFT"
+                # self.mode = "STOP"
+                self.mode = "TARZAN_LEFT"
                 print("Saw left again, swinging to left")
 
         # else:
@@ -342,9 +324,11 @@ class lane_keeper:
         if self.prev_right_stat == False and right_stat == True:
             self.right_miss_count = 0
             if self.right_recover_count == 1:
-                # self.mode = "INNER_DRIVE"
-                self.mode = "STOP"
+                # self.mode = "TARZAN_RIGHT"
+                # self.mode = "STOP"
                 print("Saw right again, swinging to right")
+                self.master_pub.publish(1)
+                return
             else:
                 self.right_recover_count += 1
                 print(f"right_recover_count increased to {self.right_recover_count}")
