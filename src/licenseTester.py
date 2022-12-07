@@ -242,6 +242,7 @@ class plateProcessor:
                         self.carCount=6
                         print("crash :(")
 
+        cv2.imshow("ScriptView",frame2)
         cv2.waitKey(3)
 
     def publishResults(self):

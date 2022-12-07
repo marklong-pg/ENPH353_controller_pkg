@@ -56,11 +56,13 @@ def main(args):
                 continue
 
             elif master.state == "trans_to_inner":
-                time.sleep(2.2)
+                time.sleep(2.4)
                 master.drive_enb.publish(3)
-                print("Transition to inner loop")
-                time.sleep(7.5)
-                master.drive_enb.publish(4)
+                print("Transitioning to inner loop")
+                time.sleep(3.5)
+                # master.drive_enb.publish(0)
+                # time.sleep(1)
+                master.drive_enb.publish(6)
                 print("Inner loop drive activated")
                 master.state = "idle"
 

@@ -20,8 +20,9 @@ MODE_DICT = {
     1 : "OUTER_PLAIN",
     2 : "HILL",
     3 : "TRANSITION_LEFT",
-    4 : "INNER_LEFT",
-    5 : "INNER_RIGHT",
+    # 4 : "INNER_LEFT",
+    # 5 : "INNER_RIGHT",
+    6 : "INNER_DRIVE",
     10: "INITIAL_START"
 }
 
@@ -64,10 +65,12 @@ class lane_keeper:
             self.outer_plain(cv_image)
         elif self.mode == "TRANSITION_LEFT":
             self.inner_left(cv_image)
-        elif self.mode == "INNER_LEFT":
-            self.inner_left(cv_image, left_limit=True)
-        elif self.mode == "INNER_RIGHT":
-            self.inner_right(cv_image)
+        # elif self.mode == "INNER_LEFT":
+        #     self.inner_left(cv_image, left_limit=True)
+        # elif self.mode == "INNER_RIGHT":
+        #     self.inner_right(cv_image)
+        elif self.mode == "INNER_DRIVE":
+            self.inner_drive(cv_image)
         elif self.mode == "HILL":
             self.hill(cv_image)
 
@@ -133,16 +136,18 @@ class lane_keeper:
             #     print("Changing to LEFT")
             #     return
             # x = self.previous_x
+            # print(f"X-invalid: {x}")
+            x = 1035
             # x = 1050
-            self.master_pub.publish(1)
-            self.mode = "TRANSITION_LEFT"
+            # self.master_pub.publish(1)
+            # self.mode = "TRANSITION_LEFT"
             return
 
         cv2.imshow("lane_keep,",cv2.circle(cv2.cvtColor(frame_bin, cv2.COLOR_GRAY2BGR),(x,20),20,(0,0,255),-1))
         cv2.waitKey(3)
         # self.move.linear.x = 0.2 * ((1-0.2)*(x-440)/(1035-440) + 0.2)
         target = 1035
-        self.move.linear.x = 0.2 #* ((1-0.2)*(1280-x)/(1280-target)+0.2)
+        self.move.linear.x = 0.3 #* ((1-0.2)*(1280-x)/(1280-target)+0.2)
         self.move.angular.z = self.PID_K*(x-target)/(440 - target)
         self.drive_pub.publish(self.move)
 
@@ -164,14 +169,16 @@ class lane_keeper:
         if len(trans) == 2 and trans[0] < 900 and trans[1] < 900:
             x = int(round(0.5*sum(trans)))
             if left_limit and x < 130:
-                print(f"x = {x} ==> go right")
+                # print(f"x = {x} ==> go right")
                 # self.move.linear.x = 0
                 # self.move.angular.z = 0
                 # self.drive_pub.publish(self.move)
                 # time.sleep(5)
-                self.mode = "INNER_RIGHT"
-                print("Changing to RIGHT")
-                return
+                # self.mode = "INNER_RIGHT"
+                # print("Changing to RIGHT")
+                # self.mode = "STOP"
+                # return
+                x = self.previous_x
             else:
                 self.previous_x = x
         else:
@@ -179,9 +186,39 @@ class lane_keeper:
         cv2.imshow("lane_keep,",cv2.circle(cv2.cvtColor(frame_bin, cv2.COLOR_GRAY2BGR),(x,20),20,(0,0,255),-1))
         cv2.waitKey(3)
         
-        self.move.linear.x = 0.2
-        self.move.angular.z = -self.PID_K*(x-220)/(900 - 220)
+        self.move.linear.x = 0.3 
+        self.move.angular.z = -7*(x-220)/(900 - 220)
         self.drive_pub.publish(self.move)
+
+    def inner_drive(self,cv_image):
+        frame_gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
+        (H,W) = frame_gray.shape
+        frame_blur = cv2.GaussianBlur(frame_gray,(21,21),10)
+        frame_cut = frame_blur[640-20:640+20,0:W].astype(np.uint8)
+        _, frame_bin = cv2.threshold(frame_cut, np.max(frame_cut)-20, 255, cv2.THRESH_BINARY)
+
+        trans = []
+        for col in range(frame_bin.shape[1]-1,0,-1):
+            if frame_bin[20,col-1] != frame_bin[20,col]:
+                trans.append(col)
+            if len(trans) == 2:
+                break
+        if len(trans) == 2 and abs(trans[0] - trans[1]) < 100:
+            x = int(round(0.5*sum(trans)))
+            self.previous_x = x
+        else:
+            x = self.previous_x
+
+        self.move.linear.x = 0.3
+        if x > 440:
+            self.move.angular.z = self.PID_K*(x-1035)/(440 - 1035)
+        else:
+            self.move.angular.z = -7*(x-220)/(900 - 220)
+        cv2.imshow("lane_keep,",cv2.circle(cv2.cvtColor(frame_bin, cv2.COLOR_GRAY2BGR),(x,20),20,(0,0,255),-1))
+        cv2.waitKey(3)
+        self.drive_pub.publish(self.move)
+        # self.mode = "STOP"
+
 
     def hill(self,cv_image):
         frame_gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
