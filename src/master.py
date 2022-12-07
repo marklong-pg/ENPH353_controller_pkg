@@ -22,6 +22,9 @@ class concertmaster:
             self.drive_enb.publish(1)
         elif msg.data == 6:
             self.state = "trans_to_inner_truck"
+        # elif msg.data == 8:
+        #     time.sleep(1)
+        #     self.state = "end"
             return
 
     def inner_loop_trigger(self,msg):
@@ -33,9 +36,11 @@ class concertmaster:
             time.sleep(3.8)
             print("Master changes to left")
             self.drive_enb.publish(3)
-            time.sleep(5)
+            time.sleep(3.3)
             self.drive_enb.publish(0)
+            # time.sleep(1)
             self.state = "end"
+            return
     
     def click_timer(self,action):
         msg = f"TeamRed,multi21,{action},XXXX"
@@ -94,7 +99,8 @@ def main(args):
             elif master.state == "end":
                 print("Ending Drive")
                 master.click_timer(-1)
-                master.drive_enb.publish(0)
+                # master.drive_enb.publish(0)
+                master.drive_enb.publish(9)
                 master.state = "idle"
     except rospy.ROSInterruptException:
         pass

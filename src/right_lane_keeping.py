@@ -24,6 +24,7 @@ MODE_DICT = {
     6 : "TARZAN_RIGHT",
     7 : "INNER_RIGHT",
     8 : "CHECK_TRUCK",
+    9 : "FINAL_PARKING",
     10: "INITIAL_START"
 }
 
@@ -84,6 +85,9 @@ class lane_keeper:
         elif self.mode == "TARZAN_LEFT":
             self.inner_drive_2(cv_image)
             # self.inner_left(cv_image)
+        elif self.mode == "FINAL_PARKING":
+            self.final_park()
+            return
         elif self.mode == "HILL":
             self.hill(cv_image)
 
@@ -95,6 +99,22 @@ class lane_keeper:
         self.move.angular.z = 1
         self.drive_pub.publish(self.move)
         time.sleep(1.8)
+        self.mode = "STOP"
+    
+    def final_park(self):
+        print("Final park procedure starts...")
+        self.move.linear.x = 0.3
+        self.move.angular.z = 0
+        self.drive_pub.publish(self.move)
+        time.sleep(0.5)
+        self.move.linear.x = 0
+        self.move.angular.z = 1
+        self.drive_pub.publish(self.move)
+        time.sleep(2)
+        self.move.linear.x = 0.2
+        self.move.angular.z = 0
+        self.drive_pub.publish(self.move)
+        time.sleep(1.5)
         self.mode = "STOP"
 
     def outer_plain(self,cv_image):

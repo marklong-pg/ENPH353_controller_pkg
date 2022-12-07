@@ -75,7 +75,7 @@ class plateProcessor:
         self.cropDict[5]=[[0,21],[22,40],[50,68],[70,87]]
         self.cropDict[6]=[[0,21],[22,40],[50,67],[70,85]]
         self.cropDict[7]=[[0,19],[20,35],[47,61],[61,77]]
-        self.cropDict[8]=[[0,19],[20,35],[47,61],[61,77]]
+        self.cropDict[8]=[[0,21],[22,37],[50,65],[65,85]]
         self.innerDetect=False
 
         plateFile=open("/home/fizzer/ros_ws/src/2022_competition/enph353/enph353_gazebo/scripts/plates.csv")
@@ -244,7 +244,7 @@ class plateProcessor:
                             imgToSave.save("/home/fizzer/"+"P"+str(plateId)+"_"+self.plateList[plateId-1]+".png")
                             print("saving "+str(plateId)+" to /home/fizzer/"+"P"+str(plateId)+"_"+self.plateList[plateId-1]+".png")  
                             plate=self.findPlateV2(plate)
-                            plate=self.warpPlateSeven(plate)
+                            plate=self.warpPlateEight(plate)
                         else:
                             plate=self.findPlateV2(colourZeroedIn)
 
@@ -546,6 +546,22 @@ class plateProcessor:
         pt_B = [0, plate.shape[0]-2]
         pt_C = [plate.shape[1], 2]
         pt_D = [plate.shape[1], plate.shape[0]-10]
+
+        inputPts =np.float32([pt_A, pt_B, pt_C, pt_D])
+        outputPts = np.float32([[0, 0],
+                                [0,20],
+                                [87, 0],
+                                [87, 20]])
+
+        M = cv2.getPerspectiveTransform(inputPts,outputPts)
+        out = cv2.warpPerspective(plate,M,(87, 22),flags=cv2.INTER_LINEAR)
+        return out
+
+    def warpPlateEight(self,plate):
+        pt_A = [0, 6]
+        pt_B = [0, plate.shape[0]-2]
+        pt_C = [plate.shape[1], 2]
+        pt_D = [plate.shape[1], plate.shape[0]-5]
 
         inputPts =np.float32([pt_A, pt_B, pt_C, pt_D])
         outputPts = np.float32([[0, 0],
