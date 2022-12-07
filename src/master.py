@@ -33,7 +33,7 @@ class concertmaster:
             time.sleep(3.8)
             print("Master changes to left")
             self.drive_enb.publish(3)
-            time.sleep(6)
+            time.sleep(5)
             self.drive_enb.publish(0)
             self.state = "end"
     

@@ -75,7 +75,7 @@ class plateProcessor:
         self.cropDict[5]=[[0,21],[22,40],[50,68],[70,87]]
         self.cropDict[6]=[[0,21],[22,40],[50,67],[70,85]]
         self.cropDict[7]=[[0,19],[20,35],[47,61],[61,77]]
-        self.cropDict[8]=[[0,21],[22,40],[50,67],[68,85]]
+        self.cropDict[8]=[[2,20],[22,36],[50,66],[67,85]]
         self.innerDetect=False
 
         plateFile=open("/home/fizzer/ros_ws/src/2022_competition/enph353/enph353_gazebo/scripts/plates.csv")
@@ -125,6 +125,9 @@ class plateProcessor:
     def carDetect(self, data, args):
         br = CvBridge()
         frame = br.imgmsg_to_cv2(data,desired_encoding='bgr8')
+
+        if(self.carCount==8):
+            return
         
         if(time.time()-self.prevCarTime<2):
             return
@@ -233,11 +236,21 @@ class plateProcessor:
                             image=im.fromarray(unwarped)
                             enhancer = ImageEnhance.Brightness(image)
                             plate = np.array(enhancer.enhance(0.6))
-                        else :
+                        elif plateId==8:
+                            image=im.fromarray(colourZeroedIn)
+                            enhancer = ImageEnhance.Brightness(image)
+                            plate = np.array(enhancer.enhance(0.6))
+                            imgToSave=im.fromarray(cv2.cvtColor(plate, cv2.COLOR_BGR2RGB))
+                            imgToSave.save("/home/fizzer/"+"P"+str(plateId)+"_"+self.plateList[plateId-1]+".png")
+                            print("saving "+str(plateId)+" to /home/fizzer/"+"P"+str(plateId)+"_"+self.plateList[plateId-1]+".png")  
+                            plate=self.findPlateV2(plate)
+                            plate=self.warpPlateSeven(plate)
+                        else:
                             plate=self.findPlateV2(colourZeroedIn)
 
                         if plateId==7:
                             plate=self.warpPlateSeven(plate)
+
                         if plateId==7 or plateId==8:
                             #toSave=colourZeroedIn if plateId!=5 else undarkened
                             imgToSave=im.fromarray(cv2.cvtColor(plate, cv2.COLOR_BGR2RGB))
@@ -500,12 +513,12 @@ class plateProcessor:
 
         predictionCrop=np.concatenate([cv2.copyMakeBorder(characterList[i],0,0,0,5,borderType=cv2.BORDER_CONSTANT,value=(255,255,255)
         ) for i in range(2)],axis=1)
-        # cv2.imshow("predictionCrop",cv2.cvtColor(predictionCrop,cv2.COLOR_RGB2BGR))
-        # cv2.moveWindow("predictionCrop",x=0,y=200)
+        cv2.imshow("predictionCrop",cv2.cvtColor(predictionCrop,cv2.COLOR_RGB2BGR))
+        cv2.moveWindow("predictionCrop",x=0,y=200)
         predictionCrop=np.concatenate([cv2.copyMakeBorder(characterList[i],0,0,0,5,borderType=cv2.BORDER_CONSTANT,value=(255,255,255)
         ) for i in range(2,4)],axis=1)
-        # cv2.imshow("predictionCrop1",cv2.cvtColor(predictionCrop,cv2.COLOR_RGB2BGR))
-        # cv2.moveWindow("predictionCrop1",x=0,y=400)
+        cv2.imshow("predictionCrop1",cv2.cvtColor(predictionCrop,cv2.COLOR_RGB2BGR))
+        cv2.moveWindow("predictionCrop1",x=0,y=400)
         cv2.waitKey(5)
 
         self.sendPlate(plateString,plateId)
