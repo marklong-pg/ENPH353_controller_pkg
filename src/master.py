@@ -11,6 +11,7 @@ class concertmaster:
         self.drive_enb = rospy.Publisher('/drive_enb',Int8,queue_size=1)
         self.license_pub = rospy.Publisher('/license_plate', String, queue_size=1)
         self.plate_count_sub = rospy.Subscriber("/car_count",Int8,self.car_count_printer)
+        self.inner_trig_sub = rospy.Subscriber('/inner_trigger',Int8,self.inner_loop_trigger)
         rospy.init_node('concertmaster', anonymous=True)
         self.state = "starting"
 
@@ -18,8 +19,18 @@ class concertmaster:
         if msg.data == 4:
             self.drive_enb.publish(1)
         elif msg.data == 6:
-            # self.state = "trans_inner"
+            self.state = "trans_to_inner"
             return
+
+    def inner_loop_trigger(self,msg):
+        print("Master changes to right")
+        self.drive_enb.publish(7)
+        time.sleep(3.8)
+        print("Master changes to left")
+        self.drive_enb.publish(3)
+        time.sleep(5)
+        self.drive_enb.publish(0)
+        print('END')
     
     def click_timer(self,action):
         msg = f"TeamRed,multi21,{action},XXXX"
@@ -43,16 +54,32 @@ def main(args):
                 master.drive_enb.publish(10) # initial orientation
                 time.sleep(5)
                 master.drive_enb.publish(1) # start driving
-                master.state = "in_drive"
+                master.state = "outer_loop"
             
-            elif master.state == "in_drive":
+            elif master.state == "outer_loop":
+                continue
+
+            elif master.state == "trans_to_inner":
+                time.sleep(2.4)
+                master.drive_enb.publish(0)
+                time.sleep(3)
+                master.drive_enb.publish(3)
+                print("Transitioning to inner loop")
+                time.sleep(3.8)
+                # master.drive_enb.publish(0)
+                # time.sleep(1)
+                master.drive_enb.publish(6)
+                print("Inner loop drive activated")
+                master.state = "idle"
+
+            elif master.state == "idle":
                 continue
 
             elif master.state == "end":
                 print("Ending Drive")
-                master.drive_enb.publish(0)
                 master.click_timer(-1)
-                master.state = "_"
+                master.drive_enb.publish(0)
+                master.state = "idle"
     except rospy.ROSInterruptException:
         pass
 

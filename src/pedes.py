@@ -35,6 +35,7 @@ class pedes_kicker:
         self.pedes_avoided = 0
         self.low_red = np.array([0, 100, 20])
         self.high_red = np.array([10, 255, 255])
+        self.no_pedes_count = 0
 
         self.low_blue = np.array([100,50,20])
         self.high_blue = np.array([110,140,120]) 
@@ -44,7 +45,6 @@ class pedes_kicker:
             self.enable = 1
             print("Pedes: ON")
         
-
     def pedes_handler(self,data):
         if self.enable:
             try:
@@ -72,6 +72,12 @@ class pedes_kicker:
                 break
 
     def avoid_pedes(self, cv_image):
+        # For testing when 2nd pedes flew away
+        if self.no_pedes_count > 20:
+            print("MISSING PEDES!")
+            self.off_and_reset()
+            self.drive_pub.publish(1)        
+
         hsv = cv2.cvtColor(cv_image,cv2.COLOR_BGR2HSV)
         W = hsv.shape[1]
         hsv = hsv[330:480,:,:]
@@ -89,15 +95,14 @@ class pedes_kicker:
             if detect:
                 break
         if x_pedes == -1:
+            self.no_pedes_count += 1
             return
 
         if self.pedes_init_side == -1:
             self.pedes_init_side = int(x_pedes > 600)
             print(f'Initial Side = {self.pedes_init_side}')
             return
-        
-        # print(f'Pedes:{x_pedes}')
-        
+                
         if  (self.pedes_init_side == self.LEFT and x_pedes > self.RIGHT_LIM) or \
             (self.pedes_init_side == self.RIGHT and x_pedes < self.LEFT_LIM):
 
@@ -108,15 +113,8 @@ class pedes_kicker:
                 self.drive_pub.publish(2)
                 self.pedes_avoided += 1
             elif self.pedes_avoided == 1:
-                # self.off_and_reset()
+                self.off_and_reset()
                 self.drive_pub.publish(1)
-
-                # testing before inner loop entrance
-                time.sleep(10)
-                self.at_crosswalk = False
-                self.pedes_init_side = -1
-                self.pedes_avoided = 0
-
 
     def off_and_reset(self):
         self.enable = 0
