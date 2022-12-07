@@ -20,7 +20,7 @@ MODE_DICT = {
     1 : "OUTER_PLAIN",
     2 : "HILL",
     3 : "TRANSITION_LEFT",
-    # 4 : "INNER_LEFT",
+    4 : "INNER_LEFT",
     # 5 : "INNER_RIGHT",
     6 : "INNER_DRIVE",
     10: "INITIAL_START"
@@ -43,8 +43,10 @@ class lane_keeper:
         self.previous_x = 0
         self.mode = "STOP"
         self.prev_left_stat = True
-        self.left_recover_count = 0
+        self.prev_right_stat = True
+        self.right_recover_count = 0
         self.left_miss_count = 0
+        self.right_miss_count = 0
 
         self.see_box_before = False
 
@@ -76,6 +78,9 @@ class lane_keeper:
         #     self.inner_right(cv_image)
         elif self.mode == "INNER_DRIVE":
             self.inner_drive_1(cv_image)
+        elif self.mode == "INNER_LEFT":
+            self.inner_drive_2(cv_image)
+            # self.inner_left(cv_image)
         elif self.mode == "HILL":
             self.hill(cv_image)
 
@@ -242,7 +247,7 @@ class lane_keeper:
                 trans.append(col)
             # if len(trans) == 2:
             #     break
-        if len(trans) >= 2 and abs(trans[0] - trans[1]) < 100:
+        if len(trans) >= 2 and abs(trans[0]-trans[1]) < 100:
             x = int(round(0.5*sum(trans)))
             self.previous_x = x
         else:
@@ -251,7 +256,7 @@ class lane_keeper:
         if len(trans) == 2:
             self.left_miss_count += 1
             print(self.left_miss_count)
-            if self.left_miss_count >= 14:
+            if self.left_miss_count >= 15:
                 left_stat = False
             else:
                 left_stat = True
@@ -284,8 +289,9 @@ class lane_keeper:
 
             if self.prev_left_stat == False and left_stat == True:
                 self.left_miss_count = 0
-                self.mode = "TRANSITION_LEFT"
-                # self.mode = "STOP"
+                # self.mode = "TRANSITION_LEFT"
+                self.mode = "STOP"
+                # self.mode = "INNER_LEFT"
                 print("Saw left again, swinging to left")
 
         # else:
@@ -298,6 +304,55 @@ class lane_keeper:
         cv2.imshow("lane_keep,",cv2.circle(cv2.cvtColor(frame_bin, cv2.COLOR_GRAY2BGR),(x,20),20,(0,0,255),-1))
         cv2.waitKey(3)
         self.drive_pub.publish(self.move)
+    
+    def inner_drive_2(self,cv_image):
+        frame_gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
+        (H,W) = frame_gray.shape
+        frame_blur = cv2.GaussianBlur(frame_gray,(21,21),10)
+        frame_cut = frame_blur[640-20:640+20,0:W].astype(np.uint8)
+        _, frame_bin = cv2.threshold(frame_cut, np.max(frame_cut)-70, 255, cv2.THRESH_BINARY)
+
+        trans = []
+        for col in range(0,frame_bin.shape[1]-1):
+            if frame_bin[20,col+1] != frame_bin[20,col]:
+                trans.append(col)
+            # if len(trans) == 2:
+            #     break
+        if len(trans) >= 2 and trans[0] < 900 and trans[1] < 900:
+            x = int(round(0.5*(trans[0]+trans[1])))
+            self.previous_x = x
+        else:
+            x = self.previous_x
+
+        if len(trans) == 2 and x < 500:
+            self.right_miss_count += 1
+            print(self.right_miss_count)
+            if self.right_miss_count >= 10:
+                right_stat = False
+            else:
+                right_stat = True
+        else:
+            self.right_miss_count = 0
+            right_stat = True
+
+        self.move.linear.x = 0.3
+        self.move.angular.z = -self.PID_K*(x-220)/(900 - 220)   
+        self.drive_pub.publish(self.move)
+
+        if self.prev_right_stat == False and right_stat == True:
+            self.right_miss_count = 0
+            if self.right_recover_count == 1:
+                # self.mode = "INNER_DRIVE"
+                self.mode = "STOP"
+                print("Saw right again, swinging to right")
+            else:
+                self.right_recover_count += 1
+                print(f"right_recover_count increased to {self.right_recover_count}")
+        self.prev_right_stat = right_stat
+
+        cv2.imshow("lane_keep,",cv2.circle(cv2.cvtColor(frame_bin, cv2.COLOR_GRAY2BGR),(x,20),20,(0,0,255),-1))
+        cv2.waitKey(3)
+        
 
     def hill(self,cv_image):
         frame_gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)

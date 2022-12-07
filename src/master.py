@@ -13,7 +13,7 @@ class concertmaster:
         self.plate_count_sub = rospy.Subscriber("/car_count",Int8,self.car_count_printer)
         self.inner_trig_sub = rospy.Subscriber('/inner_trigger',Int8,self.inner_loop_trigger)
         rospy.init_node('concertmaster', anonymous=True)
-        self.state = "starting"
+        self.state = "idle"
 
     def car_count_printer(self,msg):
         if msg.data == 4:
