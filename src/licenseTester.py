@@ -90,7 +90,7 @@ class plateProcessor:
 
         self.letterConvModel= tf.keras.models.load_model('/home/fizzer/ros_ws/src/controller_pkg/src/BlueOnlyLetterModel6/')
         self.numberConvModel= tf.keras.models.load_model('/home/fizzer/ros_ws/src/controller_pkg/src/BlueOnlyNumModelSimData3/')
-        self.binaryClassify08= tf.keras.models.load_model('/home/fizzer/ros_ws/src/controller_pkg/src/Binary0And8Colour/')
+        #self.binaryClassify08= tf.keras.models.load_model('/home/fizzer/ros_ws/src/controller_pkg/src/Binary0And8Colour/')
 
         self.plate_pub=rospy.Publisher('/license_plate', String, queue_size=1)
         self.car_count = rospy.Publisher('/car_count',Int8,queue_size=1)
@@ -227,11 +227,11 @@ class plateProcessor:
                             image=im.fromarray(unwarped)
                             enhancer = ImageEnhance.Brightness(image)
                             plate = np.array(enhancer.enhance(0.6))
-                        elif plateId==7:
-                            plate=self.warpPlateSeven(plate)
                         else :
                             plate=self.findPlateV2(colourZeroedIn)
 
+                        if plateId==7:
+                            plate=self.warpPlateSeven(plate)
                         if plateId==7 or plateId==8:
                             #toSave=colourZeroedIn if plateId!=5 else undarkened
                             imgToSave=im.fromarray(cv2.cvtColor(plate, cv2.COLOR_BGR2RGB))
@@ -387,11 +387,11 @@ class plateProcessor:
         if num:
             NN_prediction = self.numberConvModel.predict(img_aug)[0]
             predictedNumber=np.argmax(NN_prediction)
-            if predictedNumber==8 or predictedNumber==0:
-                NN_prediction = self.binaryClassify08.predict(np.expand_dims(tf.cast(cv2.resize(toPredict,None,fx=5,fy=5),tf.float32),axis=0))[0]
-                # cv2.imshow("binary predict",cv2.resize(padded,None,fx=5,fy=5))
-                print(np.argmax(NN_prediction)*8)
-                print("used binary")
+            # if predictedNumber==8 or predictedNumber==0:
+            #     # NN_prediction = self.binaryClassify08.predict(np.expand_dims(tf.cast(cv2.resize(toPredict,None,fx=5,fy=5),tf.float32),axis=0))[0]
+            #     # cv2.imshow("binary predict",cv2.resize(padded,None,fx=5,fy=5))
+            #     print(np.argmax(NN_prediction)*8)
+            #     print("used binary")
             return (str(predictedNumber),toPredict)
         else:
             NN_prediction = self.letterConvModel.predict(img_aug)[0]
