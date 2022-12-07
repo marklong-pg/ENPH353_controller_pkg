@@ -74,7 +74,7 @@ class plateProcessor:
         self.cropDict[4]=[[2,20],[22,36],[50,66],[67,85]]
         self.cropDict[5]=[[0,21],[22,40],[50,68],[70,87]]
         self.cropDict[6]=[[0,21],[22,40],[50,67],[70,85]]
-        self.cropDict[7]=[[0,21],[22,40],[50,67],[68,85]]
+        self.cropDict[7]=[[0,19],[20,35],[47,61],[61,77]]
         self.cropDict[8]=[[0,21],[22,40],[50,67],[68,85]]
 
         plateFile=open("/home/fizzer/ros_ws/src/2022_competition/enph353/enph353_gazebo/scripts/plates.csv")
@@ -84,11 +84,13 @@ class plateProcessor:
         for row in plateReader:
             self.plateList.append(row[0]+"_"+str(time.time()%1000))
             self.actualPlateList.append(row[0])
+            print(row[0])
 
         print(self.plateList)
 
-        self.letterConvModel= tf.keras.models.load_model('/home/fizzer/ros_ws/src/controller_pkg/src/BlueOnlyLetterModel3/')
-        self.numberConvModel= tf.keras.models.load_model('/home/fizzer/ros_ws/src/controller_pkg/src/BlueOnlyNumModelSimData2/')
+        self.letterConvModel= tf.keras.models.load_model('/home/fizzer/ros_ws/src/controller_pkg/src/BlueOnlyLetterModel6/')
+        self.numberConvModel= tf.keras.models.load_model('/home/fizzer/ros_ws/src/controller_pkg/src/BlueOnlyNumModelSimData3/')
+        #self.binaryClassify08= tf.keras.models.load_model('/home/fizzer/ros_ws/src/controller_pkg/src/Binary0And8Colour/')
 
         self.plate_pub=rospy.Publisher('/license_plate', String, queue_size=1)
         self.car_count = rospy.Publisher('/car_count',Int8,queue_size=1)
@@ -119,17 +121,14 @@ class plateProcessor:
         frame = br.imgmsg_to_cv2(data,desired_encoding='bgr8')
         
         if(time.time()-self.prevCarTime<2):
-            #print("im shleep")
-            # if(time.time()-self.prevCarTime>15):
-            #     self.drive_enb.publish(1) 
-            # if(0.2<=time.time()-self.prevCarTime<=0.5):
-            #     toSave=frame
-            #     imgToSave=im.fromarray(cv2.cvtColor(toSave, cv2.COLOR_BGR2RGB))
-            #     imgToSave.save("/home/fizzer/PlateCapture/"+"lateP"+"_"+str(time.time())+".png")
+            return
+
+        if(time.time()-self.prevCarTime<10 and self.carCount==6):
+            #print("car count return")
             return
 
         if self.carCount==6:
-            #self.drive_enb.publish(0)
+            # self.drive_enb.publish(0)
             if not self.publishTag:
                 self.publishResults()
                 self.publishTag=True
@@ -199,14 +198,18 @@ class plateProcessor:
                     self.carCount+=1
                     self.car_count.publish(self.carCount)
                     print(self.carCount)
-                    rgbFrame=cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
                     self.prevCarTime=time.time() 
 
                     #zero in on car
                     zeroedInEdges=self.locateCar(centerList,frame.shape[1]/2)
                     colourZeroedIn=frame[:,zeroedInEdges[0]:zeroedInEdges[1]] # all parts of image included
 
-                    plateId=1 if self.carCount==6 else self.carCount+1
+                    if self.carCount==6:
+                        plateId=1
+                    elif self.carCount>6:
+                        plateId=self.carCount
+                    else:
+                        plateId=self.carCount+1
 
                     if plateId==5:
                         image=im.fromarray(cv2.cvtColor(colourZeroedIn,cv2.COLOR_BGR2RGB))
@@ -227,22 +230,30 @@ class plateProcessor:
                         else :
                             plate=self.findPlateV2(colourZeroedIn)
 
+                        if plateId==7:
+                            plate=self.warpPlateSeven(plate)
+                        if plateId==7 or plateId==8:
+                            #toSave=colourZeroedIn if plateId!=5 else undarkened
+                            imgToSave=im.fromarray(cv2.cvtColor(plate, cv2.COLOR_BGR2RGB))
+                            imgToSave.save("/home/fizzer/"+"P"+str(plateId)+"_"+self.plateList[plateId-1]+".png")
+                            print("saving "+str(plateId)+" to /home/fizzer/"+"P"+str(plateId)+"_"+self.plateList[plateId-1]+".png")  
+
                         cv2.imshow("plate",plate)
                         cv2.moveWindow("plate",0,0)
                         self.predictDict[plateId]=self.cropAndPredict(plate,plateId)
                         # toSave=colourZeroedIn if plateId!=5 else undarkened
                         # imgToSave=im.fromarray(cv2.cvtColor(toSave, cv2.COLOR_BGR2RGB))
                         # imgToSave.save("/home/fizzer/AutomatedPlateCapture/FinalDrive/"+"P"+str(plateId)+"_"+self.plateList[plateId-1]+".png")
-                        print("saving "+str(plateId))
+                        # print("saving "+str(plateId))
                         # if plateId==5:
                         #     imgToSave=im.fromarray(cv2.cvtColor(self.undarkened1, cv2.COLOR_BGR2RGB))
                         #     imgToSave.save("/home/fizzer/AutomatedPlateCapture/FinalDrive/"+"P"+str(plateId-1)+"_"+self.plateList[plateId-2]+".png")
 
                     except:
-                        self.carCount=6
+                        #self.carCount=6
                         print("crash :(")
 
-        # cv2.imshow("ScriptView",frame2)
+        cv2.imshow("ScriptView",frame2)
         cv2.waitKey(3)
 
     def publishResults(self):
@@ -376,6 +387,11 @@ class plateProcessor:
         if num:
             NN_prediction = self.numberConvModel.predict(img_aug)[0]
             predictedNumber=np.argmax(NN_prediction)
+            # if predictedNumber==8 or predictedNumber==0:
+            #     # NN_prediction = self.binaryClassify08.predict(np.expand_dims(tf.cast(cv2.resize(toPredict,None,fx=5,fy=5),tf.float32),axis=0))[0]
+            #     # cv2.imshow("binary predict",cv2.resize(padded,None,fx=5,fy=5))
+            #     print(np.argmax(NN_prediction)*8)
+            #     print("used binary")
             return (str(predictedNumber),toPredict)
         else:
             NN_prediction = self.letterConvModel.predict(img_aug)[0]
@@ -478,12 +494,12 @@ class plateProcessor:
 
         predictionCrop=np.concatenate([cv2.copyMakeBorder(characterList[i],0,0,0,5,borderType=cv2.BORDER_CONSTANT,value=(255,255,255)
         ) for i in range(2)],axis=1)
-        cv2.imshow("predictionCrop",cv2.cvtColor(predictionCrop,cv2.COLOR_RGB2BGR))
-        cv2.moveWindow("predictionCrop",x=0,y=200)
+        # cv2.imshow("predictionCrop",cv2.cvtColor(predictionCrop,cv2.COLOR_RGB2BGR))
+        # cv2.moveWindow("predictionCrop",x=0,y=200)
         predictionCrop=np.concatenate([cv2.copyMakeBorder(characterList[i],0,0,0,5,borderType=cv2.BORDER_CONSTANT,value=(255,255,255)
         ) for i in range(2,4)],axis=1)
-        cv2.imshow("predictionCrop1",cv2.cvtColor(predictionCrop,cv2.COLOR_RGB2BGR))
-        cv2.moveWindow("predictionCrop1",x=0,y=400)
+        # cv2.imshow("predictionCrop1",cv2.cvtColor(predictionCrop,cv2.COLOR_RGB2BGR))
+        # cv2.moveWindow("predictionCrop1",x=0,y=400)
         cv2.waitKey(5)
 
         self.sendPlate(plateString,plateId)
@@ -495,6 +511,22 @@ class plateProcessor:
         pt_B = [2, plate.shape[0]-2]
         pt_C = [plate.shape[1], 5]
         pt_D = [plate.shape[1], plate.shape[0]]
+
+        inputPts =np.float32([pt_A, pt_B, pt_C, pt_D])
+        outputPts = np.float32([[0, 0],
+                                [0,20],
+                                [87, 0],
+                                [87, 20]])
+
+        M = cv2.getPerspectiveTransform(inputPts,outputPts)
+        out = cv2.warpPerspective(plate,M,(87, 22),flags=cv2.INTER_LINEAR)
+        return out
+
+    def warpPlateSeven(self,plate):
+        pt_A = [0, 6]
+        pt_B = [0, plate.shape[0]-2]
+        pt_C = [plate.shape[1], 2]
+        pt_D = [plate.shape[1], plate.shape[0]-10]
 
         inputPts =np.float32([pt_A, pt_B, pt_C, pt_D])
         outputPts = np.float32([[0, 0],
