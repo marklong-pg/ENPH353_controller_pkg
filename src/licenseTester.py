@@ -75,7 +75,7 @@ class plateProcessor:
         self.cropDict[5]=[[0,21],[22,40],[50,68],[70,87]]
         self.cropDict[6]=[[0,21],[22,40],[50,67],[70,85]]
         self.cropDict[7]=[[0,19],[20,35],[47,61],[61,77]]
-        self.cropDict[8]=[[2,20],[22,36],[50,66],[67,85]]
+        self.cropDict[8]=[[0,19],[20,35],[47,61],[61,77]]
         self.innerDetect=False
 
         plateFile=open("/home/fizzer/ros_ws/src/2022_competition/enph353/enph353_gazebo/scripts/plates.csv")
