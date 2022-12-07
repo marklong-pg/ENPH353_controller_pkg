@@ -13,7 +13,7 @@ class concertmaster:
         self.plate_count_sub = rospy.Subscriber("/car_count",Int8,self.car_count_printer)
         self.inner_trig_sub = rospy.Subscriber('/inner_trigger',Int8,self.inner_loop_trigger)
         rospy.init_node('concertmaster', anonymous=True)
-        self.state = "trans_to_inner"
+        self.state = "starting"
 
     def car_count_printer(self,msg):
         if msg.data == 4:
@@ -57,9 +57,11 @@ def main(args):
 
             elif master.state == "trans_to_inner":
                 time.sleep(2.4)
+                master.drive_enb.publish(0)
+                time.sleep(3)
                 master.drive_enb.publish(3)
                 print("Transitioning to inner loop")
-                time.sleep(3.5)
+                time.sleep(3.8)
                 # master.drive_enb.publish(0)
                 # time.sleep(1)
                 master.drive_enb.publish(6)

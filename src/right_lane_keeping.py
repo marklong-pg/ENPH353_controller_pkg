@@ -248,10 +248,10 @@ class lane_keeper:
         else:
             x = self.previous_x
 
-        if len(trans) != 4:
+        if len(trans) == 2:
             self.left_miss_count += 1
             print(self.left_miss_count)
-            if self.left_miss_count >= 20:
+            if self.left_miss_count >= 14:
                 left_stat = False
             else:
                 left_stat = True
@@ -259,7 +259,7 @@ class lane_keeper:
             self.left_miss_count = 0
             left_stat = True
             # print("LEFT now TRUE")
-        print(f"Left stat: {left_stat}; Prev stat: {self.prev_left_stat}")
+        # print(f"Left stat: {left_stat}; Prev stat: {self.prev_left_stat}")
         
         # if len(trans) != 4:
         #     left_stat = False
@@ -270,23 +270,34 @@ class lane_keeper:
         if x > 440: # Line at Right
             self.move.angular.z = self.PID_K*(x-1035)/(440 - 1035)
             self.see_box_before = False
-            if self.prev_left_stat == False and left_stat == True:      
-                self.prev_left_stat = True
+            # if self.prev_left_stat == False and left_stat == True:
+            #     if self.left_recover_count == 2:      
+            #         self.prev_left_stat = True
+            #         self.left_miss_count = 0
+            #         # self.mode = "TRANSITION_LEFT"
+            #         self.mode = "STOP"
+            #         print("Saw left again, swinging to left")
+            #         return
+            #     else:
+            #         self.left_recover_count += 1
+            #         print(self.left_recover_count)
+
+            if self.prev_left_stat == False and left_stat == True:
                 self.left_miss_count = 0
-                # self.mode = "TRANSITION_LEFT"
-                self.mode = "STOP"
+                self.mode = "TRANSITION_LEFT"
+                # self.mode = "STOP"
                 print("Saw left again, swinging to left")
-                return
-        else:
-            self.move.angular.z = -7*(x-220)/(900 - 220)
-            if not self.see_box_before:
-                # cv2.imshow("inner_box,",cv_image) 
-                self.see_box_before = True  
+
+        # else:
+        #     self.move.angular.z = -7*(x-220)/(900 - 220)
+        #     if not self.see_box_before:
+        #         # cv2.imshow("inner_box,",cv_image) 
+        #         self.see_box_before = True
         self.prev_left_stat = left_stat
+
         cv2.imshow("lane_keep,",cv2.circle(cv2.cvtColor(frame_bin, cv2.COLOR_GRAY2BGR),(x,20),20,(0,0,255),-1))
         cv2.waitKey(3)
         self.drive_pub.publish(self.move)
-        # self.mode = "STOP"
 
     def hill(self,cv_image):
         frame_gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
