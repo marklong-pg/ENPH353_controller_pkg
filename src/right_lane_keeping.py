@@ -23,7 +23,7 @@ MODE_DICT = {
     4 : "TARZAN_LEFT",
     6 : "TARZAN_RIGHT",
     7 : "INNER_RIGHT",
-    # 8 : "INNER_LEFT",
+    8 : "CHECK_TRUCK",
     10: "INITIAL_START"
 }
 
@@ -73,6 +73,8 @@ class lane_keeper:
             self.outer_plain(cv_image)
         elif self.mode == "TRANSITION_LEFT":
             self.inner_left(cv_image)
+        elif self.mode == "CHECK_TRUCK":
+            self.check_truck(cv_image)
         # elif self.mode == "INNER_LEFT":
         #     self.inner_left(cv_image, left_limit=True)
         elif self.mode == "INNER_RIGHT":
@@ -122,6 +124,22 @@ class lane_keeper:
         self.move.linear.x = 0.2
         self.move.angular.z = self.PID_K*(x-1035)/(440 - 1035)
         self.drive_pub.publish(self.move)
+
+    def check_truck(self,cv_image):
+        frame_gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
+        (H,W) = frame_gray.shape
+        frame_blur = cv2.GaussianBlur(frame_gray,(21,21),10)
+        frame_cut = frame_blur[int(0.6*H):H,0:W].astype(np.uint8)
+        _, frame_bin = cv2.threshold(frame_cut, 20, 255, cv2.THRESH_BINARY_INV)
+
+        for row in range(0,150):
+            for col in range(0,W):
+                if frame_bin[row,col] != 0:
+                    self.mode = "STOP"
+                    print("Saw truck! Waiting to pass....")
+                    time.sleep(7) # time to wait for truck to go away
+                    self.master_pub.publish(0)
+                    return
     
     def inner_right(self,cv_image):
         # process image using gray-scale filtering
@@ -328,6 +346,7 @@ class lane_keeper:
                 # self.mode = "STOP"
                 print("Saw right again, swinging to right")
                 self.master_pub.publish(1)
+                self.mode = "STOP"
                 return
             else:
                 self.right_recover_count += 1
